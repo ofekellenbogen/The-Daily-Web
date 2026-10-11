@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <%- include('partials/layout/head', { title }) %>
+</head>
+<body>
+  <%- include('partials/layout/header') %>
+  <main class="container error-page">
+    <h1><%= status %></h1>
+    <p><%= message %></p>
+    <a class="button" href="/">חזרה לעמוד הבית</a>
+  </main>
+  <%- include('partials/layout/footer') %>
+</body>
+</html>
