@@ -5,6 +5,7 @@ const { connectDb } = require('../../src/config/db');
 const User = require('../../src/models/User');
 const Article = require('../../src/models/Article');
 const ViewStats = require('../../src/models/ViewStats');
+const Comment = require('../../src/models/Comment');
 
 const { CATEGORIES } = Article;
 
@@ -42,6 +43,17 @@ const ACTIONS = [
   'מגיבים לביקורת הציבורית',
   'שוברים שיא חדש',
   'מסכמים שנה של הישגים'
+];
+
+const COMMENTERS = ['אורח', 'רוני', 'מיכל', 'אבי', 'שירה', 'דוד', 'קורא קבוע', 'תמר'];
+
+const COMMENT_TEXTS = [
+  'כתבה מעניינת, תודה!',
+  'מעניין לראות איך זה יתפתח בשבועות הקרובים.',
+  'לא בטוח שאני מסכים, אבל זו נקודה חשובה.',
+  'חסרים פה נתונים, אשמח לעדכון.',
+  'סוף סוף מישהו כותב על זה.',
+  'שאלה טובה מה ההשלכות לטווח הארוך.'
 ];
 
 function randomInt(min, max) {
@@ -154,6 +166,27 @@ function buildViewStats(articles, now) {
   return stats;
 }
 
+function buildComments(articles, now) {
+  const comments = [];
+  for (const article of articles) {
+    if (!article.publishedVersion) continue;
+    const firstPublishedAt = article.publicationHistory[0].publishedAt.getTime();
+    const count = randomInt(0, 5);
+    for (let i = 0; i < count; i++) {
+      const createdAt = new Date(randomInt(firstPublishedAt, now));
+      comments.push({
+        articleId: article._id,
+        authorName: pick(COMMENTERS),
+        body: pick(COMMENT_TEXTS),
+        deviceId: 'seed',
+        createdAt,
+        updatedAt: createdAt
+      });
+    }
+  }
+  return comments;
+}
+
 async function seed() {
   await connectDb(process.env.MONGODB_URI);
   const now = Date.now();
@@ -173,6 +206,7 @@ async function seed() {
   // Only data owned by the demo users is replaced, so other seeds are left intact.
   const oldArticleIds = await Article.find({ authorId: { $in: reporters.map((r) => r._id) } }).distinct('_id');
   await ViewStats.deleteMany({ articleId: { $in: oldArticleIds } });
+  await Comment.deleteMany({ articleId: { $in: oldArticleIds } });
   await Article.deleteMany({ _id: { $in: oldArticleIds } });
 
   const articleDocs = [];
@@ -182,9 +216,14 @@ async function seed() {
   const articles = await Article.insertMany(articleDocs);
   const stats = buildViewStats(articles, now);
   await ViewStats.insertMany(stats);
+  // Timestamps are generated above, so Mongoose must not overwrite them with the current time.
+  const comments = await Comment.insertMany(buildComments(articles, now), { timestamps: false });
 
   const publishedCount = articles.filter((a) => a.publishedVersion).length;
-  console.log(`[seed] ${users.length} users, ${articles.length} articles (${publishedCount} public), ${stats.length} view-stat days`);
+  console.log(
+    `[seed] ${users.length} users, ${articles.length} articles (${publishedCount} public), ` +
+      `${stats.length} view-stat days, ${comments.length} comments`
+  );
 }
 
 seed()

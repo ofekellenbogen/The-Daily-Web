@@ -6,6 +6,7 @@ const { connectDb } = require('./src/config/db');
 const deviceId = require('./src/middleware/deviceId');
 const { notFound, errorHandler } = require('./src/middleware/errors');
 const publicRoutes = require('./src/modules/public/public.routes');
+const commentRoutes = require('./src/modules/comments/comments.routes');
 
 const app = express();
 
@@ -14,9 +15,11 @@ app.set('views', path.join(__dirname, 'views'));
 app.disable('x-powered-by');
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json({ limit: '10kb' }));
 app.use(deviceId);
 
 app.use(publicRoutes);
+app.use(commentRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

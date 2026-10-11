@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <%- include('../partials/layout/head', { title, description: article.summary }) %>
+  <link rel="stylesheet" href="/css/public.css">
+</head>
+<body>
+  <%- include('../partials/layout/header') %>
+
+  <main class="container article-page" id="main">
+    <nav class="back-link" aria-label="ניווט">
+      <a href="/">חזרה לכל הכתבות</a>
+    </nav>
+
+    <article class="article">
+      <header class="article__header">
+        <span class="badge"><%= article.categoryLabel %></span>
+        <h1 class="article__title"><%= article.title %></h1>
+        <% if (article.summary) { %>
+          <p class="article__summary"><%= article.summary %></p>
+        <% } %>
+        <p class="article__meta">
+          <span>מאת <strong><%= article.authorName %></strong></span>
+          <span>
+            <%= article.isUpdate ? 'עודכן' : 'פורסם' %>
+            <time datetime="<%= article.publishedAt.toISOString() %>"><%= formatDate(article.publishedAt) %></time>
+          </span>
+        </p>
+      </header>
+
+      <% if (article.imageUrl) { %>
+        <figure class="article__figure">
+          <img src="<%= article.imageUrl %>" alt="" width="640" height="360">
+        </figure>
+      <% } %>
+
+      <div class="article__body">
+        <% for (const paragraph of article.paragraphs) { %>
+          <p><%= paragraph %></p>
+        <% } %>
+      </div>
+    </article>
+
+    <%- include('../partials/comments', { articleId: article.id, comments, commentCount, formatDate }) %>
+  </main>
+
+  <%- include('../partials/layout/footer') %>
+  <script src="/js/comments.js" defer></script>
+</body>
+</html>
