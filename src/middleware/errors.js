@@ -18,6 +18,7 @@ function errorHandler(err, req, res, next) {
     console.error(`[error] ${req.method} ${req.originalUrl}`, err);
   }
   const message = status >= 500 ? 'אירעה שגיאה בשרת, נסו שוב מאוחר יותר' : err.message;
+  if (err.retryAfterSeconds) res.set('Retry-After', String(err.retryAfterSeconds));
 
   if (req.originalUrl.startsWith('/api/')) {
     return res.status(status).json({

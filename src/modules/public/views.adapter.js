@@ -1,7 +1,8 @@
 const ViewStats = require('../../models/ViewStats');
 const ArticleSeen = require('../../models/ArticleSeen');
+const viewsService = require('../analytics/views.service');
 
-// Read-only access to view data; recording views belongs to the analytics module.
+// Recording views belongs to the analytics module; this adapter only calls it.
 
 async function getPopularity(articleIds) {
   const rows = await ViewStats.aggregate([
@@ -15,4 +16,9 @@ async function getSeenArticleIds(deviceId) {
   return ArticleSeen.distinct('articleId', { deviceId });
 }
 
-module.exports = { getPopularity, getSeenArticleIds };
+// Every visit counts as a view, while the seen mark is stored once per browser.
+async function recordVisit(articleId, deviceId) {
+  await Promise.all([viewsService.recordView(articleId), viewsService.markSeen(deviceId, articleId)]);
+}
+
+module.exports = { getPopularity, getSeenArticleIds, recordVisit };

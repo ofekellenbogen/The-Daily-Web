@@ -114,6 +114,27 @@ a {
   background: var(--color-primary-dark);
 }
 
+.button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.button--secondary {
+  background: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.button--secondary:hover,
+.button--secondary:focus-visible {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+[hidden] {
+  display: none !important;
+}
+
 .error-page {
   padding-top: 48px;
   text-align: center;

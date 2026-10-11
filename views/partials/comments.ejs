@@ -1,0 +1,41 @@
+<section class="comments" id="comments" aria-labelledby="comments-title"
+  data-article-id="<%= articleId %>" data-next-cursor="<%= comments.meta.nextCursor || '' %>">
+  <h2 id="comments-title">תגובות (<span id="comments-count"><%= commentCount %></span>)</h2>
+
+  <form class="comment-form" id="comment-form" novalidate>
+    <div class="field">
+      <label for="comment-name">שם (לא חובה)</label>
+      <input type="text" id="comment-name" name="authorName" maxlength="50" placeholder="אורח" autocomplete="nickname">
+    </div>
+    <div class="field">
+      <label for="comment-body">תגובה</label>
+      <textarea id="comment-body" name="body" rows="4" maxlength="1000" required></textarea>
+    </div>
+    <div class="comment-form__actions">
+      <button type="submit" class="button">פרסום תגובה</button>
+      <p class="comment-form__status" id="comment-status" role="status" aria-live="polite"></p>
+    </div>
+    <noscript>
+      <p class="comment-form__status">כדי לפרסם תגובה יש להפעיל JavaScript בדפדפן.</p>
+    </noscript>
+  </form>
+
+  <ol class="comment-list" id="comment-list">
+    <% for (const comment of comments.data) { %>
+      <li class="comment">
+        <header class="comment__meta">
+          <strong><%= comment.authorName %></strong>
+          <time datetime="<%= comment.createdAt %>"><%= formatDate(comment.createdAt) %></time>
+        </header>
+        <p class="comment__body"><%= comment.body %></p>
+      </li>
+    <% } %>
+  </ol>
+
+  <p class="comments-empty" id="comments-empty" <%= comments.data.length > 0 ? 'hidden' : '' %>>
+    אין עדיין תגובות. היו הראשונים להגיב!
+  </p>
+  <button type="button" class="button button--secondary" id="comments-more" <%= comments.meta.hasMore ? '' : 'hidden' %>>
+    הצגת תגובות קודמות
+  </button>
+</section>
