@@ -17,7 +17,8 @@ function readCookie(req, name) {
 // Gives every browser a random id, used for the "seen / unseen" filter and comment limits.
 function deviceId(req, res, next) {
   let id = readCookie(req, COOKIE_NAME);
-  if (!id || !UUID_PATTERN.test(id)) {
+  req.isNewDevice = !id || !UUID_PATTERN.test(id);
+  if (req.isNewDevice) {
     id = crypto.randomUUID();
     res.cookie(COOKIE_NAME, id, {
       httpOnly: true,
