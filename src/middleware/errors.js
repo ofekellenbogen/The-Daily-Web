@@ -17,12 +17,22 @@ function errorHandler(err, req, res, next) {
   if (status >= 500) {
     console.error(`[error] ${req.method} ${req.originalUrl}`, err);
   }
-  const message = status >= 500 ? 'אירעה שגיאה בשרת, נסו שוב מאוחר יותר' : err.message;
+  // Errors thrown by libraries (e.g. malformed JSON) may carry English internals, so only ours are shown as is.
+  const isOwn = err instanceof HttpError && status < 500;
+  let message = 'אירעה שגיאה בשרת, נסו שוב מאוחר יותר';
+  let code = 'INTERNAL_ERROR';
+  if (isOwn) {
+    message = err.message;
+    code = err.code;
+  } else if (status < 500) {
+    message = 'הבקשה אינה תקינה';
+    code = 'BAD_REQUEST';
+  }
   if (err.retryAfterSeconds) res.set('Retry-After', String(err.retryAfterSeconds));
 
   if (req.originalUrl.startsWith('/api/')) {
     return res.status(status).json({
-      error: { code: err.code || 'INTERNAL_ERROR', message, fields: err.fields }
+      error: { code, message, fields: isOwn ? err.fields : undefined }
     });
   }
   res.status(status).render('error', { title: `שגיאה ${status}`, status, message });

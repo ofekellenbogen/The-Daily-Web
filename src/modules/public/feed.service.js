@@ -136,7 +136,7 @@ function pruneSnapshots() {
 async function createSnapshot(filter, key) {
   const docs = await Article.find(filter).select('_id').lean();
   const ids = docs.map((doc) => doc._id);
-  const counts = await viewsAdapter.getPopularity(ids);
+  const counts = await viewsAdapter.getPopularity();
   ids.sort((a, b) => {
     const diff = (counts.get(String(b)) || 0) - (counts.get(String(a)) || 0);
     return diff !== 0 ? diff : String(b).localeCompare(String(a));

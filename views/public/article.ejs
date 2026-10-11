@@ -22,9 +22,15 @@
         <p class="article__meta">
           <span>מאת <strong><%= article.authorName %></strong></span>
           <span>
-            <%= article.isUpdate ? 'עודכן' : 'פורסם' %>
-            <time datetime="<%= article.publishedAt.toISOString() %>"><%= formatDate(article.publishedAt) %></time>
+            פורסם
+            <time datetime="<%= article.firstPublishedAt.toISOString() %>"><%= formatDate(article.firstPublishedAt) %></time>
           </span>
+          <% if (article.isUpdate) { %>
+            <span>
+              עודכן
+              <time datetime="<%= article.publishedAt.toISOString() %>"><%= formatDate(article.publishedAt) %></time>
+            </span>
+          <% } %>
         </p>
       </header>
 

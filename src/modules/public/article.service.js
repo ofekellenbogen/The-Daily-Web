@@ -20,7 +20,7 @@ async function getPublicArticle(id) {
   if (!isObjectId(id)) throw articleNotFound();
 
   const doc = await Article.findOne({ _id: id, 'publishedVersion.publishedAt': { $ne: null } })
-    .select('authorId publishedVersion')
+    .select({ authorId: 1, publishedVersion: 1, publicationHistory: { $slice: 1 } })
     .populate('authorId', 'displayName')
     .lean();
   if (!doc) throw articleNotFound();
@@ -35,6 +35,7 @@ async function getPublicArticle(id) {
     category: version.category,
     categoryLabel: CATEGORIES[version.category] || version.category,
     authorName: doc.authorId ? doc.authorId.displayName : 'מערכת החדשות',
+    firstPublishedAt: doc.publicationHistory[0]?.publishedAt || version.publishedAt,
     publishedAt: version.publishedAt,
     isUpdate: version.version > 1
   };
