@@ -39,9 +39,26 @@
         <% if (currentUser.role === 'reporter' && ['draft', 'returned'].includes(article.workflowStatus)) { %>
           <button class="button" type="button" data-action="submit">שמירה ושליחה לאישור עורך</button>
         <% } %>
+        <% if (currentUser.role === 'editor') { %>
+          <% if (article.workflowStatus === 'pending') { %>
+            <button class="button" type="button" data-action="approve">שמירה ואישור פרסום</button>
+            <label for="editor-note">הערה להחזרה לתיקונים</label>
+            <textarea id="editor-note" maxlength="1000" rows="3"></textarea>
+            <button class="button button--secondary" type="button" data-action="return">שמירה והחזרה לתיקונים</button>
+          <% } %>
+          <button class="button button--secondary" type="button" data-action="delete">מחיקת כתבה</button>
+        <% } %>
       </section>
+      <% if (currentUser.role === 'editor' && article.publishedVersion) { %>
+        <section class="staff-card" aria-labelledby="published-title">
+          <h2 id="published-title">הגרסה המפורסמת כעת</h2>
+          <h3><%= article.publishedVersion.title %></h3>
+          <p><%= article.publishedVersion.summary %></p>
+          <p class="published-body"><%= article.publishedVersion.body %></p>
+        </section>
+      <% } %>
     <% } %>
-    <a href="/reporter">חזרה לאזור העבודה</a>
+    <a href="<%= currentUser.role === 'editor' ? '/editor' : '/reporter' %>">חזרה לאזור העבודה</a>
     <noscript><p>יש להפעיל JavaScript כדי לשמור ולנהל כתבות.</p></noscript>
   </main>
   <%- include('../partials/layout/footer') %>

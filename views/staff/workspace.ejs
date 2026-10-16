@@ -18,6 +18,7 @@
           <article class="staff-card">
             <h2><a href="/staff/articles/<%= article._id %>"><%= article.workingCopy.title || 'ללא כותרת' %></a></h2>
             <p>מצב: <%= statusLabels[article.workflowStatus] %></p>
+            <% if (currentUser.role === 'editor') { %><p>כתב: <%= article.authorId?.displayName || 'משתמש לא זמין' %></p><% } %>
             <% if (article.editorNote) { %><p>הערת עורך: <%= article.editorNote %></p><% } %>
           </article>
         </li>
