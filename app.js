@@ -7,6 +7,7 @@ const deviceId = require('./src/middleware/deviceId');
 const { notFound, errorHandler } = require('./src/middleware/errors');
 const publicRoutes = require('./src/modules/public/public.routes');
 const commentRoutes = require('./src/modules/comments/comments.routes');
+const authRoutes = require('./src/modules/auth/auth.routes');
 const { loadUser } = require('./src/middleware/auth');
 
 const app = express();
@@ -17,9 +18,11 @@ app.disable('x-powered-by');
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 app.use(deviceId);
 app.use(loadUser);
 
+app.use(authRoutes);
 app.use(publicRoutes);
 app.use(commentRoutes);
 
