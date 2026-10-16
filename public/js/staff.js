@@ -44,10 +44,22 @@ form.addEventListener('submit', (event) => {
   });
 });
 
-editor.querySelector('[data-action="submit"]')?.addEventListener('click', () => {
-  run(async () => {
-    await save();
-    await request(`/api/staff/articles/${articleId}/submit`, 'POST');
-    window.location.reload();
+editor.querySelectorAll('[data-action]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const action = button.dataset.action;
+    if (action === 'delete' && !window.confirm('למחוק את הכתבה?')) return;
+    const note = document.getElementById('editor-note')?.value || '';
+    if (action === 'return' && !note.trim()) {
+      status.textContent = 'יש לצרף הערה לתיקונים';
+      status.classList.add('form-error');
+      return;
+    }
+    run(async () => {
+      if (action !== 'delete') await save();
+      await request(`/api/staff/articles/${articleId}${action === 'delete' ? '' : `/${action}`}`,
+        action === 'delete' ? 'DELETE' : 'POST', action === 'return' ? { note } : undefined);
+      if (action === 'delete') window.location.assign('/editor');
+      else window.location.reload();
+    });
   });
 });

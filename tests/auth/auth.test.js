@@ -100,7 +100,6 @@ test('passwords use salted one-way hashes and reject wrong or placeholder hashes
   assert.equal(await verifyPassword(password, '!no-password-set'), false);
 });
 
-
 test('login is semantic HTML; incorrect and malformed credentials do not stop the server', async () => {
   const page = await request('/login');
   assert.equal(page.status, 200);
@@ -120,7 +119,6 @@ test('login is semantic HTML; incorrect and malformed credentials do not stop th
   assert.equal(sessions.size, 0);
 });
 
-
 test('login redirects by the database role, stores only a token hash, and sets cookie protections', async () => {
   for (const [username, location] of [[' REPORTER ', '/reporter'], ['editor', '/editor']]) {
     const response = await request('/login', { method: 'POST', body: { username, password, role: 'editor' } });
@@ -133,14 +131,13 @@ test('login redirects by the database role, stores only a token hash, and sets c
     const token = cookie.split(';')[0].split('=')[1];
     assert.equal(token.length, 64);
     assert.ok(!sessions.has(token));
-    assert.equal((await request('/login', { cookie: cookie.split(';')[0] })).headers.get('location'), location);
+    assert.equal((await request(location, { cookie: cookie.split(';')[0] })).status, 200);
   }
 });
 
-
 test('guests can read public pages but cannot access staff pages or any staff mutation', async () => {
   assert.equal((await request('/')).status, 200);
-  for (const path of ['/reporter', '/staff/articles/new']) {
+  for (const path of ['/reporter', '/editor', '/staff/articles/new']) {
     const response = await request(path);
     assert.equal(response.status, 302);
     assert.equal(response.headers.get('location'), '/login');
@@ -154,7 +151,6 @@ test('guests can read public pages but cannot access staff pages or any staff mu
     assert.equal((await request(path, { method, body: content })).status, 401);
   }
 });
-
 
 test('reporters create owned drafts and cannot forge authors, roles or publication fields', async () => {
   const cookie = await login();
@@ -172,7 +168,6 @@ test('reporters create owned drafts and cannot forge authors, roles or publicati
   assert.equal(article.publishedVersion, null);
 });
 
-
 test('reporters see/edit only their articles and cannot use editor operations directly', async () => {
   const cookie = await login();
   const own = storeArticle({ authorId: users[0]._id, workingCopy: content });
@@ -184,9 +179,49 @@ test('reporters see/edit only their articles and cannot use editor operations di
   assert.equal((await request(`/staff/articles/${other._id}`, { cookie })).status, 403);
   assert.equal((await request(`/api/staff/articles/${other._id}`, { method: 'PATCH', cookie, body: content })).status, 403);
   assert.equal((await request(`/api/staff/articles/${other._id}/submit`, { method: 'POST', cookie })).status, 403);
+  assert.equal((await request('/editor', { cookie })).status, 403);
+  for (const action of ['approve', 'return']) {
+    assert.equal((await request(`/api/staff/articles/${own._id}/${action}`, { method: 'POST', cookie, body: { note: 'Fix it' } })).status, 403);
+  }
+  assert.equal((await request(`/api/staff/articles/${own._id}`, { method: 'DELETE', cookie })).status, 403);
   assert.equal((await request(`/api/staff/articles/${own._id}`, { method: 'PATCH', cookie, body: { ...content, title: 'Saved' } })).status, 200);
 });
 
+test('reporter submits; editor edits, returns with a note, approves and deletes content', async () => {
+  const reporterCookie = await login();
+  const editorCookie = await login('editor');
+  const article = storeArticle({ authorId: users[0]._id, workingCopy: content });
+  const path = `/api/staff/articles/${article._id}`;
+  assert.equal((await request(`${path}/approve`, { method: 'POST', cookie: editorCookie })).status, 409);
+  assert.equal((await request(`${path}/submit`, { method: 'POST', cookie: reporterCookie })).status, 200);
+  assert.equal((await request(path, { method: 'PATCH', cookie: reporterCookie, body: content })).status, 409);
+  assert.equal((await request(`/staff/articles/${article._id}`, { cookie: editorCookie })).status, 200);
+  assert.equal((await request(path, { method: 'PATCH', cookie: editorCookie, body: { ...content, title: 'Editor changes' } })).status, 200);
+  assert.equal((await request(`${path}/return`, { method: 'POST', cookie: editorCookie, body: { note: '' } })).status, 400);
+  assert.equal((await request(`${path}/return`, { method: 'POST', cookie: editorCookie, body: { note: 'Add source' } })).status, 200);
+  assert.equal(article.workflowStatus, 'returned');
+  assert.equal(article.editorNote, 'Add source');
+  assert.equal((await request(`${path}/submit`, { method: 'POST', cookie: reporterCookie })).status, 200);
+  assert.equal((await request(`${path}/approve`, { method: 'POST', cookie: editorCookie })).status, 200);
+  assert.equal(article.workflowStatus, 'published');
+  assert.equal(article.publishedVersion.title, 'Editor changes');
+  assert.equal(article.publicationHistory.length, 1);
+
+  // Editing a published article must not replace the public snapshot before approval.
+  assert.equal((await request(path, { method: 'PATCH', cookie: reporterCookie, body: { ...content, title: 'Unapproved update' } })).status, 200);
+  assert.equal(article.workflowStatus, 'draft');
+  assert.equal(article.publishedVersion.title, 'Editor changes');
+  assert.equal((await request(`${path}/submit`, { method: 'POST', cookie: reporterCookie })).status, 200);
+  assert.equal(article.publishedVersion.title, 'Editor changes');
+  assert.equal((await request(`${path}/approve`, { method: 'POST', cookie: editorCookie })).status, 200);
+  assert.equal(article.publishedVersion.version, 2);
+  assert.equal(article.publishedVersion.title, 'Unapproved update');
+  assert.equal((await request(path, { method: 'DELETE', cookie: editorCookie })).status, 204);
+  assert.equal(articles.has(String(article._id)), false);
+  for (const Model of [Comment, ArticleSeen, ViewStats]) {
+    assert.equal(String(Model.deleteMany.mock.calls.at(-1).arguments[0].articleId), String(article._id));
+  }
+});
 
 test('invalid IDs, content and cross-origin requests return errors and leave the server working', async () => {
   const cookie = await login();
@@ -203,7 +238,6 @@ test('invalid IDs, content and cross-origin requests return errors and leave the
   assert.equal((await request('/reporter', { cookie })).status, 200);
 });
 
-
 test('a persisted login works after the app is reloaded and its HTTP server restarted', async () => {
   const cookie = await login();
   await stopServer();
@@ -214,7 +248,6 @@ test('a persisted login works after the app is reloaded and its HTTP server rest
   assert.equal(response.status, 200);
   assert.match(await response.text(), /reporter/);
 });
-
 
 test('expired, forged and logged-out sessions cannot access protected routes', async () => {
   const cookie = await login();
