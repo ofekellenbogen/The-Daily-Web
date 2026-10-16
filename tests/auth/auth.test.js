@@ -138,15 +138,81 @@ test('login redirects by the database role, stores only a token hash, and sets c
 });
 
 
+test('guests can read public pages but cannot access staff pages or any staff mutation', async () => {
+  assert.equal((await request('/')).status, 200);
+  for (const path of ['/reporter', '/staff/articles/new']) {
+    const response = await request(path);
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get('location'), '/login');
+  }
+  const id = String(new Article()._id);
+  for (const [method, path] of [
+    ['POST', '/api/staff/articles'], ['PATCH', `/api/staff/articles/${id}`],
+    ['POST', `/api/staff/articles/${id}/submit`], ['POST', `/api/staff/articles/${id}/approve`],
+    ['POST', `/api/staff/articles/${id}/return`], ['DELETE', `/api/staff/articles/${id}`]
+  ]) {
+    assert.equal((await request(path, { method, body: content })).status, 401);
+  }
+});
+
+
+test('reporters create owned drafts and cannot forge authors, roles or publication fields', async () => {
+  const cookie = await login();
+  const created = await request('/api/staff/articles', { method: 'POST', cookie, body: content });
+  assert.equal(created.status, 201);
+  const { id } = await created.json();
+  const article = articles.get(id);
+  assert.equal(String(article.authorId), String(users[0]._id));
+  assert.equal(article.workflowStatus, 'draft');
+  for (const forged of [{ authorId: String(users[1]._id) }, { role: 'editor' }, { workflowStatus: 'published' }, { publishedVersion: content }]) {
+    assert.equal((await request(`/api/staff/articles/${id}`, { method: 'PATCH', cookie, body: { ...content, ...forged } })).status, 400);
+    assert.equal((await request('/api/staff/articles', { method: 'POST', cookie, body: { ...content, ...forged } })).status, 400);
+  }
+  assert.equal(article.workflowStatus, 'draft');
+  assert.equal(article.publishedVersion, null);
+});
+
+
+test('reporters see/edit only their articles and cannot use editor operations directly', async () => {
+  const cookie = await login();
+  const own = storeArticle({ authorId: users[0]._id, workingCopy: content });
+  const other = storeArticle({ authorId: users[1]._id, workingCopy: { ...content, title: 'Other private title' } });
+  const workspace = await request('/reporter', { cookie });
+  const html = await workspace.text();
+  assert.match(html, /Test article/);
+  assert.ok(!html.includes('Other private title'));
+  assert.equal((await request(`/staff/articles/${other._id}`, { cookie })).status, 403);
+  assert.equal((await request(`/api/staff/articles/${other._id}`, { method: 'PATCH', cookie, body: content })).status, 403);
+  assert.equal((await request(`/api/staff/articles/${other._id}/submit`, { method: 'POST', cookie })).status, 403);
+  assert.equal((await request(`/api/staff/articles/${own._id}`, { method: 'PATCH', cookie, body: { ...content, title: 'Saved' } })).status, 200);
+});
+
+
+test('invalid IDs, content and cross-origin requests return errors and leave the server working', async () => {
+  const cookie = await login();
+  const article = storeArticle({ authorId: users[0]._id, workingCopy: content });
+  for (const id of ['invalid-id', String(new Article()._id)]) {
+    assert.equal((await request(`/api/staff/articles/${id}`, { method: 'PATCH', cookie, body: content })).status, 404);
+  }
+  for (const body of [{}, { ...content, category: 'invalid' }, { ...content, imageUrl: 'javascript:alert(1)' }, { ...content, title: { $gt: '' } }]) {
+    assert.equal((await request(`/api/staff/articles/${article._id}`, { method: 'PATCH', cookie, body })).status, 400);
+  }
+  for (const path of ['/login', '/logout', `/api/staff/articles/${article._id}/submit`]) {
+    assert.equal((await request(path, { method: 'POST', cookie, body: { username: 'reporter', password }, headers: { Origin: 'https://other.example' } })).status, 403);
+  }
+  assert.equal((await request('/reporter', { cookie })).status, 200);
+});
+
+
 test('a persisted login works after the app is reloaded and its HTTP server restarted', async () => {
   const cookie = await login();
   await stopServer();
   delete require.cache[require.resolve('../../app')];
   const freshApp = require('../../app');
   await startServer(freshApp);
-  const response = await request('/login', { cookie });
-  assert.equal(response.status, 302);
-  assert.equal(response.headers.get('location'), '/reporter');
+  const response = await request('/reporter', { cookie });
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /reporter/);
 });
 
 
@@ -154,10 +220,10 @@ test('expired, forged and logged-out sessions cannot access protected routes', a
   const cookie = await login();
   assert.equal((await request('/logout', { method: 'POST', cookie })).status, 303);
   assert.equal(sessions.size, 0);
-  assert.equal((await request('/login', { cookie })).status, 200);
+  assert.equal((await request('/reporter', { cookie })).status, 302);
   const expiredCookie = await login();
   for (const session of sessions.values()) session.expiresAt = new Date(Date.now() - 1000);
-  assert.equal((await request('/login', { cookie: expiredCookie })).status, 200);
-  assert.equal((await request('/login', { cookie: 'dw_session=forged' })).status, 200);
-  assert.equal((await request('/login', { cookie: `dw_session=${'a'.repeat(64)}` })).status, 200);
+  assert.equal((await request('/reporter', { cookie: expiredCookie })).status, 302);
+  assert.equal((await request('/reporter', { cookie: 'dw_session=forged' })).status, 302);
+  assert.equal((await request('/reporter', { cookie: `dw_session=${'a'.repeat(64)}` })).status, 302);
 });

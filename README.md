@@ -31,3 +31,7 @@ This branch supplies the security foundation. The login page and staff workspace
 ## Login page
 
 Open `/login` and use a seeded username and `DEMO_PASSWORD`. `POST /login` verifies credentials and redirects reporters to `/reporter` and editors to `/editor`; those destinations are implemented in the following workspace branches. `POST /logout` deletes the session. The semantic Hebrew/RTL form shows validation errors and works without JavaScript. The shared header displays login/logout links.
+
+## Reporter workspace
+
+`/reporter` lists the current reporter's articles. `/staff/articles/new` creates a draft; `/staff/articles/:id` edits an owned article. JSON endpoints under `/api/staff/articles` support POST creation, PATCH saving and POST `/:id/submit`. Content fields are `title`, `summary`, `body`, `category`, `imageUrl`; forged author, role or publication fields are rejected. Pending articles cannot be edited by their reporter. Saving is manual. Published snapshots remain unchanged while editing. All staff routes require a reporter, and ownership is checked on the server. Editor review is added in the following branch.
