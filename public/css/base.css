@@ -85,6 +85,15 @@ a {
   color: #c9c9c9;
 }
 
+.staff-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.staff-nav form { margin: 0; }
+
 .site-footer {
   margin-top: 32px;
   padding: 16px 0;
