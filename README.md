@@ -1,37 +1,86 @@
 # The Daily Web
 
-News site using Express, EJS, MongoDB/Mongoose and vanilla JavaScript.
+A news site built with Node.js 20+, Express, EJS, MongoDB/Mongoose and vanilla JavaScript. The server follows MVC: models store data, controllers handle requests, services contain the application logic, and EJS views render HTML. No additional authentication or frontend libraries are needed.
 
-## Setup
+## Install and run
 
 ```bash
 npm install
 cp .env.example .env
-npm run seed:users
+```
+
+Set `MONGODB_URI` in `.env` to a running local MongoDB or Atlas database. Set `DEMO_PASSWORD` to a password of 8–256 characters, then run:
+
+```bash
+npm run seed:users  # create/update demo accounts without replacing articles
 npm start
 ```
 
-Set `MONGODB_URI` and an 8–256 character `DEMO_PASSWORD` in `.env` before seeding. `seed:users` creates/updates four reporter accounts (`dana.levi`, `yossi.cohen`, `maya.mizrahi`, `amir.peretz`) and `editor`, using that password. `npm run seed:public` also replaces demo content and resets demo passwords.
+Open http://localhost:3000. `PORT` defaults to `3000`; `MONGODB_DB` defaults to `daily-web`. Use `npm run dev` to restart automatically after code changes.
 
-## Structure and authentication foundation
+For the existing demo feed (520 articles, comments and view statistics), run `npm run seed:public`. It also seeds the users. Each seed command resets the demo accounts' passwords to the current `DEMO_PASSWORD`; `seed:public` also replaces their articles and related demo data. Keep `.env` out of Git.
 
-- `src/models/`: users, articles, comments, statistics and persistent sessions.
-- `src/modules/auth/auth.service.js`: credential verification and MongoDB session creation, lookup and deletion.
-- `src/middleware/auth.js`: load the current user, require login, check roles and reject cross-origin requests.
-- `src/utils/`: salted scrypt password hashes, cookie reading and ID validation.
-- `src/modules/public/`, `comments/`, `analytics/`: existing public news functionality.
-- `views/`, `public/`: EJS pages, CSS and vanilla JavaScript.
-- `scripts/seed/`: demonstration accounts and content.
-- `tests/`: Node tests; run `npm test`.
+## Login and permissions
 
-Session cookies contain random tokens; MongoDB stores only their hashes and seven-day expirations. Sessions survive server restarts. The current user and role are loaded from MongoDB on each authenticated request. Production cookies use HTTPS (`NODE_ENV=production`). No dependencies were added.
+Open `/login`. All demo accounts use the password you set in `DEMO_PASSWORD`:
 
-This branch supplies the security foundation. The login page and staff workspaces are added by subsequent branches.
+| Role | Usernames | Access |
+| --- | --- | --- |
+| Guest | No login | Public feed, published articles and comments |
+| Reporter | `dana.levi`, `yossi.cohen`, `maya.mizrahi`, `amir.peretz` | `/reporter`: create articles, edit their own articles and submit them for review |
+| Editor | `editor` | `/editor`: view/edit all articles, approve publication, return with a note and delete |
 
-## Login page
+Reporters cannot access another reporter's article or publish/delete content. While an article is pending review, its reporter cannot edit it. These rules are enforced on the server for both pages and API requests. Browser-supplied roles, author IDs and publication fields are rejected.
 
-Open `/login` and use a seeded username and `DEMO_PASSWORD`. `POST /login` verifies credentials and redirects reporters to `/reporter` and editors to `/editor`; those destinations are implemented in the following workspace branches. `POST /logout` deletes the session. The semantic Hebrew/RTL form shows validation errors and works without JavaScript. The shared header displays login/logout links.
+The workspace provides a basic article list and editing form. Save a draft, then submit it for review. The editor can save changes and approve or return a pending article. Editing published content keeps the last approved snapshot public until the next approval. Article saving is manual; automatic draft saving is not implemented yet.
 
-## Reporter workspace
+Passwords are stored as salted, one-way `scrypt` hashes using Node's built-in `crypto` module. Login creates a random session token in an HttpOnly, SameSite=Lax cookie; only its SHA-256 hash and expiry are stored in MongoDB. Sessions last seven days and survive a server restart without a server-side secret or in-memory session store. Each request loads the user's current role from MongoDB. Logout deletes the session. Production uses Secure cookies, so set `NODE_ENV=production` when serving over HTTPS.
 
-`/reporter` lists the current reporter's articles. `/staff/articles/new` creates a draft; `/staff/articles/:id` edits an owned article. JSON endpoints under `/api/staff/articles` support POST creation, PATCH saving and POST `/:id/submit`. Content fields are `title`, `summary`, `body`, `category`, `imageUrl`; forged author, role or publication fields are rejected. Pending articles cannot be edited by their reporter. Saving is manual. Published snapshots remain unchanged while editing. All staff routes require a reporter, and ownership is checked on the server. Editor review is added in the following branch.
+## Main routes
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET / POST | `/login` | Login form / authenticate |
+| POST | `/logout` | End the current session |
+| GET | `/reporter`, `/editor` | Role-specific workspaces |
+| GET | `/staff/articles/new`, `/staff/articles/:id` | Create / edit form |
+| POST | `/api/staff/articles` | Create an owned draft (reporter) |
+| PATCH | `/api/staff/articles/:id` | Save content (owner or editor) |
+| POST | `/api/staff/articles/:id/submit` | Submit an owned draft/returned article (reporter) |
+| POST | `/api/staff/articles/:id/approve` | Publish a pending article (editor) |
+| POST | `/api/staff/articles/:id/return` | Return a pending article with `{ "note": "..." }` (editor) |
+| DELETE | `/api/staff/articles/:id` | Delete an article and related comments/statistics (editor) |
+
+Create/save requests use JSON fields `title`, `summary`, `body`, `category`, and `imageUrl`. Guests receive `401` for protected API requests and are redirected to login for protected pages. Forbidden operations return `403`, invalid data `400`, missing articles `404`, and invalid workflow transitions `409`. Errors do not stop the server.
+
+## Project structure
+
+```text
+app.js                      Express setup and server startup
+src/config/db.js            MongoDB connection
+src/models/                 Users, sessions, articles, comments and view data
+src/middleware/             Authentication, role checks, device IDs and errors
+src/modules/auth/           Login, logout and persistent sessions
+src/modules/staff/          Reporter/editor pages and protected article operations
+src/modules/public/         Public feed and approved article pages
+src/modules/comments/       Comments and rate limiting
+src/modules/analytics/      View tracking
+src/utils/                  Password hashing, cookies and ObjectId validation
+views/                      Semantic Hebrew/RTL EJS pages and shared layout
+public/css/, public/js/     Responsive styles and vanilla JavaScript/Ajax
+scripts/seed/               Demo users and public content
+tests/                      Node's built-in test runner
+plan/                       Assignment PDF and team work plan
+```
+
+The public site includes feed search/filter/sort, infinite scrolling, server-rendered articles, comments, guest comment limits and view tracking. Public routes read only `publishedVersion`, never the working draft.
+
+## Verification
+
+```bash
+npm test
+```
+
+Authentication/permissions tests exercise real HTTP routes with mocked MongoDB operations: wrong credentials, guest access, ownership, forged fields, editor actions, workflow validation, session expiry/logout and a new server instance reusing the persisted session. They do not require a database or change your `.env` database.
+
+To check an actual restart locally: sign in, stop `npm start`, start it again and refresh `/reporter` or `/editor` in the same browser. The MongoDB session and cookie remain valid until logout or expiry.

@@ -1,11 +1,14 @@
 const Article = require('../../models/Article');
+const Comment = require('../../models/Comment');
+const ArticleSeen = require('../../models/ArticleSeen');
+const ViewStats = require('../../models/ViewStats');
 const { HttpError } = require('../../middleware/errors');
 const { isObjectId } = require('../../utils/objectId');
 
 const STATUS_LABELS = { draft: 'בהכנה', pending: 'ממתינה לאישור עורך', published: 'פורסמה', returned: 'הוחזרה לתיקונים' };
 
 async function listArticles(user) {
-  const filter = { authorId: user._id };
+  const filter = user.role === 'editor' ? {} : { authorId: user._id };
   return Article.find(filter).sort({ updatedAt: -1 }).populate('authorId', 'displayName').lean();
 }
 
@@ -70,10 +73,42 @@ async function transitionArticle(id, user, action, note) {
     }
     article.workflowStatus = 'pending';
     article.editorNote = '';
+  } else {
+    if (user.role !== 'editor') throw new HttpError(403, 'FORBIDDEN', 'פעולה זו מותרת לעורך בלבד');
+    if (article.workflowStatus !== 'pending') {
+      throw new HttpError(409, 'INVALID_TRANSITION', 'ניתן לאשר או להחזיר רק כתבה שממתינה לאישור');
+    }
+    if (action === 'approve') {
+      const publishedAt = new Date();
+      const version = (article.publishedVersion?.version || 0) + 1;
+      article.publishedVersion = { ...article.workingCopy.toObject(), version, publishedAt };
+      article.publicationHistory.push({ version, publishedAt, editorId: user._id });
+      article.workflowStatus = 'published';
+      article.editorNote = '';
+    } else if (action === 'return') {
+      if (typeof note !== 'string' || !note.trim() || note.length > 1000) {
+        throw new HttpError(400, 'NOTE_REQUIRED', 'יש לצרף הערה לתיקונים (עד 1000 תווים)');
+      }
+      article.workflowStatus = 'returned';
+      article.editorNote = note.trim();
+    } else {
+      throw new HttpError(400, 'INVALID_ACTION', 'פעולה לא תקינה');
+    }
   }
   article.revision += 1;
   await article.save();
   return article;
 }
 
-module.exports = { STATUS_LABELS, listArticles, getArticle, createArticle, updateArticle, transitionArticle };
+async function deleteArticle(id, user) {
+  if (user.role !== 'editor') throw new HttpError(403, 'FORBIDDEN', 'פעולה זו מותרת לעורך בלבד');
+  const article = await getArticle(id, user);
+  await article.deleteOne();
+  await Promise.all([
+    Comment.deleteMany({ articleId: article._id }),
+    ArticleSeen.deleteMany({ articleId: article._id }),
+    ViewStats.deleteMany({ articleId: article._id })
+  ]);
+}
+
+module.exports = { STATUS_LABELS, listArticles, getArticle, createArticle, updateArticle, transitionArticle, deleteArticle };
