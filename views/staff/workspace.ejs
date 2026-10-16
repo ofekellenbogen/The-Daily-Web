@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <%- include('../partials/layout/head', { title }) %>
+  <link rel="stylesheet" href="/css/staff.css">
+</head>
+<body>
+  <%- include('../partials/layout/header') %>
+  <main class="container staff-page">
+    <h1><%= title %></h1>
+    <% if (currentUser.role === 'reporter') { %>
+      <a class="button" href="/staff/articles/new">יצירת כתבה חדשה</a>
+    <% } %>
+    <% if (!articles.length) { %><p>אין עדיין כתבות להצגה.</p><% } %>
+    <ul class="article-list" aria-label="כתבות לניהול">
+      <% for (const article of articles) { %>
+        <li>
+          <article class="staff-card">
+            <h2><a href="/staff/articles/<%= article._id %>"><%= article.workingCopy.title || 'ללא כותרת' %></a></h2>
+            <p>מצב: <%= statusLabels[article.workflowStatus] %></p>
+            <% if (article.editorNote) { %><p>הערת עורך: <%= article.editorNote %></p><% } %>
+          </article>
+        </li>
+      <% } %>
+    </ul>
+  </main>
+  <%- include('../partials/layout/footer') %>
+</body>
+</html>
