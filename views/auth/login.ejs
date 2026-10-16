@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <%- include('../partials/layout/head', { title }) %>
+  <link rel="stylesheet" href="/css/staff.css">
+</head>
+<body>
+  <%- include('../partials/layout/header') %>
+  <main class="container staff-page">
+    <section class="login-card" aria-labelledby="login-title">
+      <h1 id="login-title">התחברות לכתבים ולעורכים</h1>
+      <% if (error) { %><p class="form-error" id="login-error" role="alert"><%= error %></p><% } %>
+      <form action="/login" method="post" class="staff-form" <%- error ? 'aria-describedby="login-error"' : '' %>>
+        <label for="username">שם משתמש</label>
+        <input id="username" name="username" autocomplete="username" maxlength="100" value="<%= username %>" required autofocus>
+        <label for="password">סיסמה</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" maxlength="256" required>
+        <button class="button" type="submit">התחברות</button>
+      </form>
+    </section>
+  </main>
+  <%- include('../partials/layout/footer') %>
+</body>
+</html>

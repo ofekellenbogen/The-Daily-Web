@@ -2,5 +2,14 @@
   <div class="container site-header__inner">
     <a class="brand" href="/">The Daily Web</a>
     <p class="tagline">החדשות שחשובות, בזמן אמת</p>
+    <nav class="staff-nav" aria-label="חשבון משתמש">
+      <% if (locals.currentUser) { %>
+        <span><%= currentUser.displayName %></span>
+        <a href="<%= currentUser.role === 'editor' ? '/editor' : '/reporter' %>"><%= currentUser.role === 'editor' ? 'ניהול תוכן' : 'אזור העבודה שלי' %></a>
+        <form action="/logout" method="post"><button class="button" type="submit">התנתקות</button></form>
+      <% } else { %>
+        <a href="/login">התחברות</a>
+      <% } %>
+    </nav>
   </div>
 </header>
