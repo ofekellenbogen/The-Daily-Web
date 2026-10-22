@@ -2,12 +2,17 @@
 
 News site using Express, EJS, MongoDB/Mongoose and vanilla JavaScript.
 
+## Shared database setup
+
+For the team's MongoDB Atlas database, ask a teammate for `MONGODB_USERNAME`, `MONGODB_PASSWORD`, and the full `MONGODB_URI`, then fill in `.env`. The application connects using the full `MONGODB_URI`.
+
+Existing shared database accounts do not require running a seed command. Only create/reset demo accounts when needed: set `DEMO_PASSWORD` and run `npm run seed:users`. This resets those demo accounts' passwords.
+
 ## Setup
 
 ```bash
 npm install
 cp .env.example .env
-npm run seed:users
 npm start
 ```
 
