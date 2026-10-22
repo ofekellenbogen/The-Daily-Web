@@ -44,6 +44,7 @@ Passwords are stored as salted, one-way `scrypt` hashes using Node's built-in `c
 | POST | `/logout` | End the current session |
 | GET | `/reporter`, `/editor` | Role-specific workspaces |
 | GET | `/staff/articles/new`, `/staff/articles/:id` | Create / edit form |
+| GET | `/api/staff/articles` | Article summaries, optional `status` and `page` (20 per page) |
 | POST | `/api/staff/articles` | Create an owned draft (reporter) |
 | PATCH | `/api/staff/articles/:id` | Save content (owner or editor) |
 | POST | `/api/staff/articles/:id/submit` | Submit an owned draft/returned article (reporter) |
@@ -84,3 +85,19 @@ npm test
 Authentication/permissions tests exercise real HTTP routes with mocked MongoDB operations: wrong credentials, guest access, ownership, forged fields, editor actions, workflow validation, session expiry/logout and a new server instance reusing the persisted session. They do not require a database or change your `.env` database.
 
 To check an actual restart locally: sign in, stop `npm start`, start it again and refresh `/reporter` or `/editor` in the same browser. The MongoDB session and cookie remain valid until logout or expiry.
+
+## Reporter task coverage (issue #8)
+
+The workspace shows all four workflow states and correction notes, lists only the signed-in reporter's articles, and supports draft creation, editing, submission, corrections/resubmission and editing a published article. The last approved snapshot stays public during draft edits and review. The server rejects another reporter's article, forged privileged fields, incomplete submissions and edits to pending articles.
+
+Lists fetch 20 article summaries at a time through `GET /api/staff/articles?page=1` and the load-more button; full article bodies are loaded only for editing. Existing drafts save through Ajax without reloading. Creation and submission remain explicit actions. Automatic draft saving belongs to issue #10 and is not implemented here.
+
+`npm test` covers ownership, all states, pagination, validation, corrections/resubmission, published snapshot preservation and Hebrew body size limits, with mocked MongoDB operations.
+
+## Editor task coverage (issue #12)
+
+`/editor` lists articles from every reporter and filters by all four workflow states. Filtering and loading the next 20 summaries use Ajax without reloading the page. The same filters work on the server and are validated there. Article list queries omit full bodies and use indexes for author, update time and workflow status.
+
+Editors can read and edit submitted content, approve complete pending articles, return them with a required correction note, and delete an article with its related comments and view data. Other state transitions and reporter attempts to use editor operations are rejected on the server. The editing page labels the submitted/working content and shows the current approved title, summary, body, category, image and version separately. The public article page continues to show the approved snapshot through editing, submission and return, and switches only after approval. Creation, submission, approval, returns and deletion produce operational logs.
+
+Tests cover every status filter, pagination, invalid transitions, empty-content approval, correction-note validation, the full published-update cycle through the public HTML route, and deletion. Database operations are mocked; a live MongoDB/browser demonstration is still needed before the defense. Autosave (#10), analytics (#13), user management CRUD and weather (#15) are separate tasks.

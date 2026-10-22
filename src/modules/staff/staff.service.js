@@ -7,9 +7,20 @@ const { isObjectId } = require('../../utils/objectId');
 
 const STATUS_LABELS = { draft: 'בהכנה', pending: 'ממתינה לאישור עורך', published: 'פורסמה', returned: 'הוחזרה לתיקונים' };
 
-async function listArticles(user) {
+async function listArticles(user, query = {}) {
   const filter = user.role === 'editor' ? {} : { authorId: user._id };
-  return Article.find(filter).sort({ updatedAt: -1 }).populate('authorId', 'displayName').lean();
+  const { status = '', page = '1' } = query;
+  if (typeof status !== 'string' || (status && !Object.hasOwn(STATUS_LABELS, status)) ||
+      typeof page !== 'string' || !/^[1-9]\d{0,5}$/.test(page)) {
+    throw new HttpError(400, 'INVALID_FILTER', 'מצב הכתבה או מספר העמוד אינם תקינים');
+  }
+  if (status) filter.workflowStatus = status;
+  const pageNumber = Number(page);
+  const articles = await Article.find(filter)
+    .select('authorId workingCopy.title workflowStatus editorNote')
+    .sort({ updatedAt: -1, _id: -1 }).skip((pageNumber - 1) * 20).limit(21)
+    .populate('authorId', 'displayName').lean();
+  return { articles: articles.slice(0, 20), nextPage: articles.length > 20 ? pageNumber + 1 : null };
 }
 
 async function getArticle(id, user) {
@@ -45,7 +56,9 @@ function parseContent(input) {
 }
 
 async function createArticle(user, input) {
-  return Article.create({ authorId: user._id, workingCopy: parseContent(input) });
+  const article = await Article.create({ authorId: user._id, workingCopy: parseContent(input) });
+  console.info(`[articles] created ${article._id} by ${user._id}`);
+  return article;
 }
 
 async function updateArticle(id, user, input) {
@@ -61,16 +74,19 @@ async function updateArticle(id, user, input) {
   return article;
 }
 
+function requireCompleteContent(content) {
+  if (!content.title.trim() || !content.summary.trim() || !content.body.trim() || !content.category) {
+    throw new HttpError(400, 'INCOMPLETE_ARTICLE', 'יש למלא כותרת, תקציר, תוכן וקטגוריה לפני הגשה או פרסום');
+  }
+}
+
 async function transitionArticle(id, user, action, note) {
   const article = await getArticle(id, user);
   if (action === 'submit') {
     if (!['draft', 'returned'].includes(article.workflowStatus)) {
       throw new HttpError(409, 'INVALID_TRANSITION', 'ניתן להגיש רק טיוטה או כתבה שהוחזרה לתיקונים');
     }
-    const content = article.workingCopy;
-    if (!content.title.trim() || !content.summary.trim() || !content.body.trim() || !content.category) {
-      throw new HttpError(400, 'INCOMPLETE_ARTICLE', 'יש למלא כותרת, תקציר, תוכן וקטגוריה לפני הגשה');
-    }
+    requireCompleteContent(article.workingCopy);
     article.workflowStatus = 'pending';
     article.editorNote = '';
   } else {
@@ -79,6 +95,7 @@ async function transitionArticle(id, user, action, note) {
       throw new HttpError(409, 'INVALID_TRANSITION', 'ניתן לאשר או להחזיר רק כתבה שממתינה לאישור');
     }
     if (action === 'approve') {
+      requireCompleteContent(article.workingCopy);
       const publishedAt = new Date();
       const version = (article.publishedVersion?.version || 0) + 1;
       article.publishedVersion = { ...article.workingCopy.toObject(), version, publishedAt };
@@ -97,6 +114,7 @@ async function transitionArticle(id, user, action, note) {
   }
   article.revision += 1;
   await article.save();
+  console.info(`[articles] ${action} ${article._id} by ${user._id}`);
   return article;
 }
 
@@ -104,6 +122,7 @@ async function deleteArticle(id, user) {
   if (user.role !== 'editor') throw new HttpError(403, 'FORBIDDEN', 'פעולה זו מותרת לעורך בלבד');
   const article = await getArticle(id, user);
   await article.deleteOne();
+  console.info(`[articles] deleted ${article._id} by ${user._id}`);
   await Promise.all([
     Comment.deleteMany({ articleId: article._id }),
     ArticleSeen.deleteMany({ articleId: article._id }),

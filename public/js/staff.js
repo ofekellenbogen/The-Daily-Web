@@ -40,7 +40,9 @@ form.addEventListener('submit', (event) => {
   event.preventDefault();
   run(async () => {
     const result = await save();
-    window.location.assign(`/staff/articles/${articleId || result.id}`);
+    if (!articleId) return window.location.assign(`/staff/articles/${result.id}`);
+    document.getElementById('article-state').textContent = `מצב: ${result.statusLabel}`;
+    status.textContent = result.message;
   });
 });
 

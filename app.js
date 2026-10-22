@@ -18,7 +18,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.disable('x-powered-by');
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json({ limit: '100kb' }));
+app.use(express.json({ limit: '256kb' }));
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 app.use(deviceId);
 app.use(loadUser);

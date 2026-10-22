@@ -10,13 +10,14 @@
   <% const locked = currentUser.role === 'reporter' && article?.workflowStatus === 'pending'; %>
   <main class="container staff-page" id="article-editor" data-article-id="<%= article?._id || '' %>">
     <h1><%= title %></h1>
-    <% if (article) { %><p>מצב: <%= statusLabels[article.workflowStatus] %></p><% } %>
+    <% if (article) { %><p id="article-state">מצב: <%= statusLabels[article.workflowStatus] %></p><% } %>
     <% if (article?.editorNote) { %><p class="staff-card">הערת עורך: <%= article.editorNote %></p><% } %>
     <% if (locked) { %><p>הכתבה ממתינה לאישור עורך ולא ניתן לערוך אותה כרגע.</p><% } %>
     <p id="staff-status" role="status" aria-live="polite"></p>
     <form id="article-form" class="staff-form">
       <fieldset <%= locked ? 'disabled' : '' %>>
-        <legend>תוכן הכתבה</legend>
+        <legend><%= currentUser.role === 'editor' ? (article?.workflowStatus === 'pending' ? 'התוכן שהוגש לאישור' : 'גרסת העבודה') : 'תוכן הכתבה' %></legend>
+        <% if (article?.publishedVersion) { %><p>השינויים בגרסת העבודה יוצגו לציבור רק לאחר אישור עורך.</p><% } %>
         <label for="article-title">כותרת</label>
         <input id="article-title" name="title" maxlength="200" value="<%= content.title || '' %>">
         <label for="article-summary">תקציר</label>
@@ -36,7 +37,7 @@
     </form>
     <% if (article) { %>
       <section class="staff-actions" aria-label="פעולות בכתבה">
-        <% if (currentUser.role === 'reporter' && ['draft', 'returned'].includes(article.workflowStatus)) { %>
+        <% if (currentUser.role === 'reporter' && ['draft', 'returned', 'published'].includes(article.workflowStatus)) { %>
           <button class="button" type="button" data-action="submit">שמירה ושליחה לאישור עורך</button>
         <% } %>
         <% if (currentUser.role === 'editor') { %>
@@ -52,8 +53,13 @@
       <% if (currentUser.role === 'editor' && article.publishedVersion) { %>
         <section class="staff-card" aria-labelledby="published-title">
           <h2 id="published-title">הגרסה המפורסמת כעת</h2>
+          <p>גרסה <%= article.publishedVersion.version %> · קטגוריה: <%= categories[article.publishedVersion.category] %></p>
           <h3><%= article.publishedVersion.title %></h3>
           <p><%= article.publishedVersion.summary %></p>
+          <% if (article.publishedVersion.imageUrl) { %>
+            <img class="published-image" src="<%= article.publishedVersion.imageUrl %>" alt="<%= article.publishedVersion.title %>" loading="lazy">
+            <p class="published-body">תמונה: <%= article.publishedVersion.imageUrl %></p>
+          <% } %>
           <p class="published-body"><%= article.publishedVersion.body %></p>
         </section>
       <% } %>

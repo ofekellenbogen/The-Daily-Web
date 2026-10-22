@@ -7,6 +7,8 @@ const Article = require('../../src/models/Article');
 const Comment = require('../../src/models/Comment');
 const ArticleSeen = require('../../src/models/ArticleSeen');
 const ViewStats = require('../../src/models/ViewStats');
+const commentsService = require('../../src/modules/comments/comments.service');
+const viewsAdapter = require('../../src/modules/public/views.adapter');
 const { hashPassword, verifyPassword } = require('../../src/utils/password');
 const app = require('../../app');
 
@@ -71,11 +73,47 @@ before(async () => {
   mock.method(Session, 'deleteOne', async (filter) => sessions.delete(filter.tokenHash));
   mock.method(Article, 'create', async (input) => storeArticle(input));
   mock.method(Article, 'findById', async (id) => articles.get(String(id)) || null);
-  mock.method(Article, 'find', (filter) => ({ sort: () => ({ populate: () => ({ lean: async () =>
-    [...articles.values()]
-      .filter((article) => !filter.authorId || String(article.authorId) === String(filter.authorId))
-      .map((article) => ({ ...article.toObject(), authorId: users.find((user) => String(user._id) === String(article.authorId)) }))
-  }) }) }));
+  mock.method(Article, 'findOne', (filter) => {
+    const query = {
+      select() { return this; },
+      populate() { return this; },
+      async lean() {
+        const article = articles.get(String(filter._id));
+        if (!article?.publishedVersion) return null;
+        return { ...article.toObject(), authorId: users.find((user) => String(user._id) === String(article.authorId)) };
+      }
+    };
+    return query;
+  });
+  mock.method(commentsService, 'listComments', async () => ({ data: [], meta: { nextCursor: null } }));
+  mock.method(commentsService, 'countComments', async () => 0);
+  mock.method(viewsAdapter, 'recordVisit', async () => {});
+  mock.method(Article, 'find', (filter) => {
+    let offset = 0;
+    let limit = Infinity;
+    let projection;
+    const query = {
+      select(fields) { projection = fields; return this; },
+      sort() { return this; },
+      skip(value) { offset = value; return this; },
+      limit(value) { limit = value; return this; },
+      populate() { return this; },
+      async lean() {
+        return [...articles.values()]
+          .filter((article) => (!filter.authorId || String(article.authorId) === String(filter.authorId)) &&
+            (!filter.workflowStatus || article.workflowStatus === filter.workflowStatus))
+          .slice(offset, offset + limit)
+          .map((article) => ({
+            ...(projection ? {
+              _id: article._id, workingCopy: { title: article.workingCopy.title },
+              workflowStatus: article.workflowStatus, editorNote: article.editorNote
+            } : article.toObject()),
+            authorId: users.find((user) => String(user._id) === String(article.authorId))
+          }));
+      }
+    };
+    return query;
+  });
   for (const Model of [Comment, ArticleSeen, ViewStats]) mock.method(Model, 'deleteMany', async () => ({}));
   await startServer(app);
 });
@@ -259,4 +297,178 @@ test('expired, forged and logged-out sessions cannot access protected routes', a
   assert.equal((await request('/reporter', { cookie: expiredCookie })).status, 302);
   assert.equal((await request('/reporter', { cookie: 'dw_session=forged' })).status, 302);
   assert.equal((await request('/reporter', { cookie: `dw_session=${'a'.repeat(64)}` })).status, 302);
+});
+
+
+test('reporter list shows all four states and correction notes, with server pagination', async () => {
+  const cookie = await login();
+  const states = ['draft', 'pending', 'published', 'returned'];
+  for (let i = 0; i < 25; i++) storeArticle({
+    authorId: users[0]._id, workingCopy: { ...content, title: `Own ${i}` },
+    workflowStatus: states[i % 4], editorNote: i % 4 === 3 ? 'Add sources' : ''
+  });
+  storeArticle({ authorId: users[1]._id, workingCopy: { ...content, title: 'Private other article' } });
+  const response = await request('/reporter', { cookie });
+  const html = await response.text();
+  for (const label of ['בהכנה', 'ממתינה לאישור עורך', 'פורסמה', 'הוחזרה לתיקונים', 'Add sources']) assert.ok(html.includes(label));
+  assert.ok(!html.includes('Private other article'));
+  const first = await (await request('/api/staff/articles', { cookie })).json();
+  const second = await (await request('/api/staff/articles?page=2', { cookie })).json();
+  assert.equal(first.articles.length, 20);
+  assert.equal(first.nextPage, 2);
+  assert.equal(second.articles.length, 5);
+  assert.equal(second.nextPage, null);
+  const ids = [...first.articles, ...second.articles].map((article) => article._id);
+  assert.equal(new Set(ids).size, 25);
+  assert.ok(first.articles.every((article) => article.workingCopy.body === undefined));
+  const filtered = await (await request('/api/staff/articles?status=returned', { cookie })).json();
+  assert.ok(filtered.articles.length > 0);
+  assert.ok(filtered.articles.every((article) => article.workflowStatus === 'returned'));
+});
+
+test('list validation and browser-supplied author filters cannot bypass ownership', async () => {
+  const cookie = await login();
+  storeArticle({ authorId: users[1]._id, workingCopy: content });
+  const response = await request(`/api/staff/articles?authorId=${users[1]._id}&role=editor`, { cookie });
+  assert.deepEqual((await response.json()).articles, []);
+  for (const query of ['page=0', 'page=-1', 'page=1.5', 'page=abc', 'page=1&page=2', 'status=invalid', 'status=draft&status=pending']) {
+    assert.equal((await request(`/api/staff/articles?${query}`, { cookie })).status, 400);
+  }
+  assert.equal((await request('/api/staff/articles')).status, 401);
+});
+
+test('reporter submits complete drafts and corrections, but incomplete or pending submissions fail', async () => {
+  const cookie = await login();
+  const article = storeArticle({ authorId: users[0]._id, workingCopy: { ...content, title: '' } });
+  const path = `/api/staff/articles/${article._id}`;
+  assert.equal((await request(`${path}/submit`, { method: 'POST', cookie })).status, 400);
+  assert.equal(article.workflowStatus, 'draft');
+  assert.equal((await request(path, { method: 'PATCH', cookie, body: content })).status, 200);
+  assert.equal((await request(`${path}/submit`, { method: 'POST', cookie })).status, 200);
+  assert.equal(article.workflowStatus, 'pending');
+  assert.equal((await request(`${path}/submit`, { method: 'POST', cookie })).status, 409);
+  assert.equal((await request(path, { method: 'PATCH', cookie, body: content })).status, 409);
+  article.workflowStatus = 'returned';
+  article.editorNote = 'Add a source';
+  const page = await (await request(`/staff/articles/${article._id}`, { cookie })).text();
+  assert.ok(page.includes('Add a source'));
+  assert.equal((await request(path, { method: 'PATCH', cookie, body: { ...content, body: 'Corrected with source' } })).status, 200);
+  assert.equal((await request(`${path}/submit`, { method: 'POST', cookie })).status, 200);
+  assert.equal(article.editorNote, '');
+  assert.equal(article.workingCopy.body, 'Corrected with source');
+});
+
+test('published edits can be submitted while the public snapshot stays unchanged', async () => {
+  const cookie = await login();
+  const publishedAt = new Date();
+  const article = storeArticle({ authorId: users[0]._id, workingCopy: content,
+    workflowStatus: 'published', publishedVersion: { ...content, version: 1, publishedAt },
+    publicationHistory: [{ version: 1, publishedAt, editorId: users[2]._id }] });
+  const page = await (await request(`/staff/articles/${article._id}`, { cookie })).text();
+  assert.ok(page.includes('data-action="submit"'));
+  const original = article.publishedVersion.toObject();
+  const path = `/api/staff/articles/${article._id}`;
+  const saved = await request(path, { method: 'PATCH', cookie, body: { ...content, title: 'New draft' } });
+  assert.equal(saved.status, 200);
+  assert.equal(article.workflowStatus, 'draft');
+  assert.equal((await saved.json()).statusLabel, 'בהכנה');
+  assert.equal((await request(`${path}/submit`, { method: 'POST', cookie })).status, 200);
+  assert.deepEqual(article.publishedVersion.toObject(), original);
+  assert.equal(article.publicationHistory.length, 1);
+});
+
+test('valid Hebrew article bodies fit the request size limit and invalid types are rejected', async () => {
+  const cookie = await login();
+  const response = await request('/api/staff/articles', { method: 'POST', cookie, body: { ...content, body: 'א'.repeat(50000) } });
+  assert.equal(response.status, 201);
+  const id = (await response.json()).id;
+  assert.equal((await request(`/api/staff/articles/${id}`, { method: 'PATCH', cookie, body: { ...content, body: 'x'.repeat(50001) } })).status, 400);
+});
+
+test('editor lists all authors, filters each status and pages filtered results', async () => {
+  const cookie = await login('editor');
+  for (const state of ['draft', 'pending', 'published', 'returned']) {
+    for (let i = 0; i < 22; i++) storeArticle({ authorId: users[i % 2]._id,
+      workingCopy: { ...content, title: `${state} ${i}` }, workflowStatus: state });
+  }
+  for (const state of ['draft', 'pending', 'published', 'returned']) {
+    const first = await (await request(`/api/staff/articles?status=${state}`, { cookie })).json();
+    const second = await (await request(`/api/staff/articles?status=${state}&page=2`, { cookie })).json();
+    assert.equal(first.articles.length, 20);
+    assert.equal(second.articles.length, 2);
+    assert.equal(second.nextPage, null);
+    assert.ok([...first.articles, ...second.articles].every((article) => article.workflowStatus === state));
+    assert.equal(new Set(first.articles.map((article) => article.authorId._id)).size, 2);
+    const page = await request(`/editor?status=${state}`, { cookie });
+    assert.equal(page.status, 200);
+    assert.ok((await page.text()).includes(`value="${state}" selected`));
+  }
+  const all = await (await request('/api/staff/articles', { cookie })).json();
+  assert.equal(all.articles.length, 20);
+  assert.equal(all.nextPage, 2);
+  assert.equal((await request('/editor?status=invalid', { cookie })).status, 400);
+});
+
+test('editor publication requires complete pending content and valid state transitions', async () => {
+  const cookie = await login('editor');
+  for (const state of ['draft', 'returned', 'published']) {
+    const article = storeArticle({ authorId: users[0]._id, workingCopy: content, workflowStatus: state });
+    for (const action of ['approve', 'return']) {
+      assert.equal((await request(`/api/staff/articles/${article._id}/${action}`, {
+        method: 'POST', cookie, body: { note: 'Fix sources' }
+      })).status, 409);
+    }
+  }
+  const article = storeArticle({ authorId: users[1]._id, workingCopy: content, workflowStatus: 'pending' });
+  const path = `/api/staff/articles/${article._id}`;
+  assert.equal((await request(path, { method: 'PATCH', cookie, body: { ...content, body: '' } })).status, 200);
+  assert.equal((await request(`${path}/approve`, { method: 'POST', cookie })).status, 400);
+  assert.equal(article.publishedVersion, null);
+  assert.equal(article.workflowStatus, 'pending');
+  for (const note of ['', ' ', 'x'.repeat(1001), { text: 'Fix sources' }]) {
+    assert.equal((await request(`${path}/return`, { method: 'POST', cookie, body: { note } })).status, 400);
+  }
+  assert.equal((await request(path, { method: 'PATCH', cookie, body: content })).status, 200);
+  assert.equal((await request(`${path}/approve`, { method: 'POST', cookie })).status, 200);
+  assert.equal(article.publicationHistory.length, 1);
+  assert.equal((await request(`${path}/approve`, { method: 'POST', cookie })).status, 409);
+  assert.equal(article.publicationHistory.length, 1);
+});
+
+test('editor sees published and submitted versions while the public sees only approved content', async () => {
+  const reporterCookie = await login();
+  const editorCookie = await login('editor');
+  const publishedAt = new Date();
+  const approved = { ...content, title: 'Approved original', body: 'Approved body', category: 'world', imageUrl: 'https://example.com/original.jpg' };
+  const article = storeArticle({ authorId: users[0]._id, workingCopy: approved,
+    workflowStatus: 'published', publishedVersion: { ...approved, version: 1, publishedAt },
+    publicationHistory: [{ version: 1, publishedAt, editorId: users[2]._id }] });
+  const path = `/api/staff/articles/${article._id}`;
+  const publicPath = `/articles/${article._id}`;
+  const update = { ...content, title: 'Unapproved revision', body: 'Unapproved body' };
+  const expectOriginal = async () => {
+    const response = await request(publicPath);
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.ok(html.includes('Approved original'));
+    assert.ok(!html.includes('Unapproved revision'));
+  };
+  await expectOriginal();
+  assert.equal((await request(path, { method: 'PATCH', cookie: reporterCookie, body: update })).status, 200);
+  await expectOriginal();
+  assert.equal((await request(`${path}/submit`, { method: 'POST', cookie: reporterCookie })).status, 200);
+  await expectOriginal();
+  const review = await (await request(`/staff/articles/${article._id}`, { cookie: editorCookie })).text();
+  for (const text of ['התוכן שהוגש לאישור', 'הגרסה המפורסמת כעת', 'Approved original', 'Unapproved revision', 'https://example.com/original.jpg', 'עולם']) assert.ok(review.includes(text));
+  assert.equal((await request(`${path}/return`, { method: 'POST', cookie: editorCookie, body: { note: 'Add sources' } })).status, 200);
+  await expectOriginal();
+  assert.equal((await request(`${path}/submit`, { method: 'POST', cookie: reporterCookie })).status, 200);
+  assert.equal((await request(`${path}/approve`, { method: 'POST', cookie: editorCookie })).status, 200);
+  const published = await (await request(publicPath)).text();
+  assert.ok(published.includes('Unapproved revision'));
+  assert.ok(!published.includes('Approved original'));
+  assert.equal(article.publishedVersion.version, 2);
+  assert.equal(article.publicationHistory.length, 2);
+  assert.equal((await request(path, { method: 'DELETE', cookie: editorCookie })).status, 204);
+  assert.equal((await request(publicPath)).status, 404);
 });
