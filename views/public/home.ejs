@@ -4,11 +4,14 @@
   <%- include('../partials/layout/head', { title }) %>
   <link rel="stylesheet" href="/css/public.css">
 </head>
-<body>
+<body class="home-page">
   <%- include('../partials/layout/header') %>
 
   <main class="container feed" id="main">
-    <h1 class="visually-hidden">פיד החדשות</h1>
+    <div class="feed-heading">
+      <h1>החדשות האחרונות</h1>
+      <span class="feed-heading__rule" aria-hidden="true"></span>
+    </div>
 
     <form class="feed-controls" id="feed-controls" role="search" novalidate>
       <div class="field field--search">
