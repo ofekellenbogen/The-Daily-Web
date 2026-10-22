@@ -2,6 +2,12 @@
 
 A news site built with Node.js 20+, Express, EJS, MongoDB/Mongoose and vanilla JavaScript. The server follows MVC: models store data, controllers handle requests, services contain the application logic, and EJS views render HTML. No additional authentication or frontend libraries are needed.
 
+## Shared database setup
+
+For the team's MongoDB Atlas database, ask a teammate for `MONGODB_USERNAME`, `MONGODB_PASSWORD`, and the full `MONGODB_URI`, then fill in `.env`. The application connects using the full `MONGODB_URI`.
+
+Existing shared database accounts do not require running a seed command. Only create/reset demo accounts when needed: set `DEMO_PASSWORD` and run `npm run seed:users`. This resets those demo accounts' passwords.
+
 ## Install and run
 
 ```bash
@@ -9,10 +15,9 @@ npm install
 cp .env.example .env
 ```
 
-Set `MONGODB_URI` in `.env` to a running local MongoDB or Atlas database. Set `DEMO_PASSWORD` to a password of 8–256 characters, then run:
+Set `MONGODB_URI` in `.env` to a running local MongoDB or Atlas database, then start the server. If you need to create/reset demo accounts, first set `DEMO_PASSWORD` to 8–256 characters and run `npm run seed:users`.
 
 ```bash
-npm run seed:users  # create/update demo accounts without replacing articles
 npm start
 ```
 
