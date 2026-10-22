@@ -13,6 +13,9 @@
 .staff-card h2 { margin-top: 0; overflow-wrap: anywhere; }
 .staff-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 24px 0; }
 .published-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.published-image { max-height: 280px; object-fit: contain; }
+.staff-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
+.staff-filter select { max-width: 100%; padding: 8px; font: inherit; }
 @media (max-width: 480px) {
   .login-card, .staff-card { padding: 14px; }
   .staff-actions .button { width: 100%; }
