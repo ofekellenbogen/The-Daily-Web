@@ -35,3 +35,11 @@ Open `/login` and use a seeded username and `DEMO_PASSWORD`. `POST /login` verif
 ## Reporter workspace
 
 `/reporter` lists the current reporter's articles. `/staff/articles/new` creates a draft; `/staff/articles/:id` edits an owned article. JSON endpoints under `/api/staff/articles` support POST creation, PATCH saving and POST `/:id/submit`. Content fields are `title`, `summary`, `body`, `category`, `imageUrl`; forged author, role or publication fields are rejected. Pending articles cannot be edited by their reporter. Saving is manual. Published snapshots remain unchanged while editing. All staff routes require a reporter, and ownership is checked on the server. Editor review is added in the following branch.
+
+## Reporter task coverage (issue #8)
+
+The workspace shows all four workflow states and correction notes, lists only the signed-in reporter's articles, and supports draft creation, editing, submission, corrections/resubmission and editing a published article. The last approved snapshot stays public during draft edits and review. The server rejects another reporter's article, forged privileged fields, incomplete submissions and edits to pending articles.
+
+Lists fetch 20 article summaries at a time through `GET /api/staff/articles?page=1` and the load-more button; full article bodies are loaded only for editing. Existing drafts save through Ajax without reloading. Creation and submission remain explicit actions. Automatic draft saving belongs to issue #10 and is not implemented here.
+
+`npm test` covers ownership, all states, pagination, validation, corrections/resubmission, published snapshot preservation and Hebrew body size limits, with mocked MongoDB operations.

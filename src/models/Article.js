@@ -61,6 +61,7 @@ const articleSchema = new mongoose.Schema(
 );
 
 articleSchema.index({ 'publishedVersion.publishedAt': -1, _id: -1 });
+articleSchema.index({ authorId: 1, updatedAt: -1, _id: -1 });
 articleSchema.index({ 'publishedVersion.category': 1, 'publishedVersion.publishedAt': -1, _id: -1 });
 
 const Article = mongoose.model('Article', articleSchema);

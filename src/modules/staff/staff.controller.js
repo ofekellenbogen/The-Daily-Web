@@ -4,9 +4,14 @@ const Article = require('../../models/Article');
 async function workspace(req, res) {
   res.render('staff/workspace', {
     title: 'אזור העבודה שלי',
-    articles: await service.listArticles(req.user),
+    ...await service.listArticles(req.user, req.query),
+    selectedStatus: req.query.status || '',
     statusLabels: service.STATUS_LABELS
   });
+}
+
+async function list(req, res) {
+  res.json({ ...await service.listArticles(req.user, req.query), statusLabels: service.STATUS_LABELS });
 }
 
 function newArticle(req, res) {
@@ -26,8 +31,8 @@ async function create(req, res) {
 }
 
 async function update(req, res) {
-  await service.updateArticle(req.params.id, req.user, req.body);
-  res.json({ message: 'הכתבה נשמרה' });
+  const article = await service.updateArticle(req.params.id, req.user, req.body);
+  res.json({ message: 'הכתבה נשמרה', statusLabel: service.STATUS_LABELS[article.workflowStatus] });
 }
 
 async function submit(req, res) {
@@ -35,4 +40,4 @@ async function submit(req, res) {
   res.json({ message: 'הכתבה נשלחה לאישור' });
 }
 
-module.exports = { workspace, newArticle, editArticle, create, update, submit };
+module.exports = { workspace, list, newArticle, editArticle, create, update, submit };
