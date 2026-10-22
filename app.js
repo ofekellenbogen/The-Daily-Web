@@ -9,6 +9,7 @@ const publicRoutes = require('./src/modules/public/public.routes');
 const commentRoutes = require('./src/modules/comments/comments.routes');
 const authRoutes = require('./src/modules/auth/auth.routes');
 const staffRoutes = require('./src/modules/staff/staff.routes');
+const analyticsRoutes = require('./src/modules/analytics/analytics.routes');
 const { loadUser } = require('./src/middleware/auth');
 
 const app = express();
@@ -18,6 +19,9 @@ app.set('views', path.join(__dirname, 'views'));
 app.disable('x-powered-by');
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.get('/vendor/chart.js', (req, res) => {
+  res.sendFile(path.join(path.dirname(require.resolve('chart.js')), 'chart.umd.js'));
+});
 app.use(express.json({ limit: '256kb' }));
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 app.use(deviceId);
@@ -25,6 +29,7 @@ app.use(loadUser);
 
 app.use(authRoutes);
 app.use(staffRoutes);
+app.use(analyticsRoutes);
 app.use(publicRoutes);
 app.use(commentRoutes);
 
