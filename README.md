@@ -32,3 +32,7 @@ Set `MONGODB_URI` and an 8–256 character `DEMO_PASSWORD` in `.env` before seed
 Session cookies contain random tokens; MongoDB stores only their hashes and seven-day expirations. Sessions survive server restarts. The current user and role are loaded from MongoDB on each authenticated request. Production cookies use HTTPS (`NODE_ENV=production`). No dependencies were added.
 
 This branch supplies the security foundation. The login page and staff workspaces are added by subsequent branches.
+
+## Login page
+
+Open `/login` and use a seeded username and `DEMO_PASSWORD`. `POST /login` verifies credentials and redirects reporters to `/reporter` and editors to `/editor`; those destinations are implemented in the following workspace branches. `POST /logout` deletes the session. The semantic Hebrew/RTL form shows validation errors and works without JavaScript. The shared header displays login/logout links.
