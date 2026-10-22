@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <%- include('../partials/layout/head', { title }) %>
+  <link rel="stylesheet" href="/css/staff.css">
+</head>
+<body>
+  <%- include('../partials/layout/header') %>
+  <main class="container staff-page analytics-page">
+    <div class="analytics-page-heading">
+      <div><p class="analytics-eyebrow">מערכת החדשות</p><h1><%= title %></h1></div>
+      <span class="analytics-timezone" lang="en" dir="ltr">UTC</span>
+    </div>
+    <form id="analytics-filter" class="analytics-filter">
+      <div class="analytics-article-field">
+        <label for="analytics-article">חיפוש כתבה</label>
+        <input id="analytics-article" type="search" role="combobox" autocomplete="off" maxlength="100" required
+          placeholder="חיפוש לפי כותרת" aria-autocomplete="list" aria-expanded="false"
+          aria-controls="analytics-suggestions" aria-describedby="analytics-search-status">
+        <ul id="analytics-suggestions" class="analytics-suggestions" role="listbox" aria-label="כתבות" hidden></ul>
+        <span id="analytics-search-status" class="analytics-search-status" role="status" aria-live="polite"></span>
+      </div>
+      <div><label for="analytics-start">מתאריך</label><input id="analytics-start" type="date" aria-label="מתאריך (UTC)" required></div>
+      <div><label for="analytics-end">עד תאריך</label><input id="analytics-end" type="date" aria-label="עד תאריך (UTC)" required></div>
+      <button id="analytics-submit" class="button" type="submit" disabled>הצגת נתונים</button>
+    </form>
+    <p id="analytics-status" role="status" aria-live="polite"></p>
+    <div class="analytics-empty">
+      <div class="analytics-empty-grid" aria-hidden="true"><span></span><span></span><span></span></div>
+      <h2>טרם נבחרה כתבה</h2>
+      <p>נתוני צפייה ופרסומים</p>
+    </div>
+    <section id="analytics-result" aria-labelledby="analytics-title" hidden>
+      <div class="analytics-heading">
+        <div class="analytics-selected-article"><p class="analytics-eyebrow">הכתבה הנבחרת</p><h2 id="analytics-title"></h2></div>
+        <dl class="analytics-totals">
+          <div><dt>צפיות בטווח</dt><dd id="analytics-total"></dd></div>
+          <div><dt>פרסומים בטווח</dt><dd id="analytics-publication-count"></dd></div>
+        </dl>
+      </div>
+      <div class="analytics-report-grid">
+        <figure class="analytics-figure">
+          <figcaption class="analytics-chart-heading">
+            <div><h3>צפיות לאורך זמן</h3><p id="analytics-interval" class="analytics-caption"></p></div>
+            <div class="analytics-legend"><span class="analytics-view-key">צפיות</span><span class="analytics-event-key">פרסום גרסה</span></div>
+          </figcaption>
+          <div class="analytics-chart"><canvas id="analytics-chart" role="img" aria-label="צפיות לאורך זמן ומועדי פרסום" aria-describedby="analytics-interval"></canvas></div>
+        </figure>
+        <aside class="analytics-history" aria-labelledby="analytics-history-title">
+          <h3 id="analytics-history-title">מועדי פרסום</h3>
+          <ul id="analytics-publications" class="analytics-publications"></ul>
+        </aside>
+      </div>
+    </section>
+    <noscript><p>יש להפעיל JavaScript כדי להציג נתוני צפייה.</p></noscript>
+  </main>
+  <%- include('../partials/layout/footer') %>
+  <script src="/vendor/chart.js" defer></script>
+  <script src="/js/analytics.js" defer></script>
+</body>
+</html>
