@@ -2,7 +2,7 @@ require('dotenv').config();
 
 const mongoose = require('mongoose');
 const { connectDb } = require('../../src/config/db');
-const User = require('../../src/models/User');
+const { seedUsers } = require('./users');
 const Article = require('../../src/models/Article');
 const ViewStats = require('../../src/models/ViewStats');
 const Comment = require('../../src/models/Comment');
@@ -12,17 +12,6 @@ const { CATEGORIES } = Article;
 const ARTICLE_COUNT = 520;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_STATS_DAYS = 14;
-
-// Login is implemented in the auth task; these accounts get a real password there.
-const NO_PASSWORD = '!no-password-set';
-
-const DEMO_USERS = [
-  { username: 'dana.levi', displayName: 'דנה לוי', role: 'reporter' },
-  { username: 'yossi.cohen', displayName: 'יוסי כהן', role: 'reporter' },
-  { username: 'maya.mizrahi', displayName: 'מאיה מזרחי', role: 'reporter' },
-  { username: 'amir.peretz', displayName: 'אמיר פרץ', role: 'reporter' },
-  { username: 'editor', displayName: 'נועה אברהם', role: 'editor' }
-];
 
 const SUBJECTS = {
   politics: ['הממשלה', 'הכנסת', 'ועדת הכספים', 'ראש העירייה', 'האופוזיציה'],
@@ -191,15 +180,7 @@ async function seed() {
   await connectDb(process.env.MONGODB_URI);
   const now = Date.now();
 
-  const users = [];
-  for (const demoUser of DEMO_USERS) {
-    const user = await User.findOneAndUpdate(
-      { username: demoUser.username },
-      { $set: demoUser, $setOnInsert: { passwordHash: NO_PASSWORD } },
-      { upsert: true, returnDocument: 'after' }
-    );
-    users.push(user);
-  }
+  const users = await seedUsers();
   const reporters = users.filter((user) => user.role === 'reporter');
   const editor = users.find((user) => user.role === 'editor');
 

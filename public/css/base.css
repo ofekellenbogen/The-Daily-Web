@@ -58,31 +58,76 @@ a {
 }
 
 .site-header {
-  background: var(--color-text);
-  color: #fff;
-  border-bottom: 4px solid var(--color-primary);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-top: 3px solid var(--color-text);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .site-header__inner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 16px;
-  padding-top: 14px;
-  padding-bottom: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+  padding-top: 24px;
+  padding-bottom: 24px;
 }
+
+.site-masthead { text-align: center; }
 
 .brand {
-  font-size: 1.75rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
   font-weight: 700;
   text-decoration: none;
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
+.brand span { color: var(--color-primary); }
+
 .tagline {
-  margin: 0;
-  color: #c9c9c9;
+  margin: 5px 0 0;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.site-nav,
+.staff-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+
+.site-nav a, .account-login { text-decoration: none; font-weight: 600; padding-block: 6px; }
+.site-nav a:hover, .account-login:hover { color: var(--color-primary); }
+.site-nav a[aria-current="page"], .account-login[aria-current="page"] { color: var(--color-primary); box-shadow: inset 0 -2px 0 var(--color-primary); }
+.site-nav a:focus-visible, .account-login:focus-visible, .brand:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 5px; border-radius: 2px; }
+.staff-nav { justify-content: flex-end; gap: 12px; }
+.account-identity { max-width: 170px; min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }
+.account-identity > span { color: var(--color-muted); }
+.account-identity strong { font-weight: 600; }
+.staff-nav form { margin: 0; }
+.staff-nav .button { padding: 7px 12px; font-size: 0.8rem; border-radius: 4px; }
+.account-login { border-inline-start: 1px solid var(--color-border); padding-inline-start: 18px; }
+
+@media (max-width: 1000px) {
+  .site-header__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; padding-block: 20px; }
+  .site-masthead { grid-column: 1 / -1; grid-row: 1; }
+  .site-nav { grid-column: 1; grid-row: 2; }
+  .staff-nav { grid-column: 2; grid-row: 2; }
+}
+
+@media (max-width: 600px) {
+  .site-header__inner { grid-template-columns: minmax(0, 1fr); gap: 16px; padding-block: 18px 14px; }
+  .site-nav { grid-column: 1; grid-row: 2; justify-content: center; gap: 10px 20px; }
+  .staff-nav { grid-column: 1; grid-row: 3; justify-content: center; padding-top: 12px; border-top: 1px solid var(--color-border); }
+  .account-login { border: 0; padding-inline-start: 0; }
+  .account-identity { max-width: 175px; }
+  .brand { font-size: 1.85rem; }
 }
 
 .site-footer {
