@@ -10,7 +10,6 @@ const commentRoutes = require('./src/modules/comments/comments.routes');
 const authRoutes = require('./src/modules/auth/auth.routes');
 const staffRoutes = require('./src/modules/staff/staff.routes');
 const analyticsRoutes = require('./src/modules/analytics/analytics.routes');
-const weatherRoutes = require('./src/modules/weather/weather.routes');
 const { loadUser } = require('./src/middleware/auth');
 
 const app = express();
@@ -35,7 +34,6 @@ app.use((req, res, next) => {
 app.use(authRoutes);
 app.use(staffRoutes);
 app.use(analyticsRoutes);
-app.use(weatherRoutes);
 app.use(publicRoutes);
 app.use(commentRoutes);
 

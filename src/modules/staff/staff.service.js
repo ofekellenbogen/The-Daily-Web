@@ -87,11 +87,7 @@ function requireCompleteContent(content) {
 async function transitionArticle(id, user, action, note) {
   const article = await getArticle(id, user);
   if (action === 'submit') {
-    if (user.role !== 'reporter') throw new HttpError(403, 'FORBIDDEN', 'פעולה זו מותרת לכתב בלבד');
-    if (String(article.authorId) !== String(user._id)) {
-      throw new HttpError(403, 'FORBIDDEN', 'אין לך הרשאה להגיש כתבה זו');
-    }
-    if (!['draft', 'returned', 'published'].includes(article.workflowStatus)) {
+    if (!['draft', 'returned'].includes(article.workflowStatus)) {
       throw new HttpError(409, 'INVALID_TRANSITION', 'ניתן להגיש רק טיוטה או כתבה שהוחזרה לתיקונים');
     }
     requireCompleteContent(article.workingCopy);

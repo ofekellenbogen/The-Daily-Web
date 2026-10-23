@@ -176,10 +176,8 @@ function buildComments(articles, now) {
   return comments;
 }
 
-async function seed(count = ARTICLE_COUNT) {
-  if (mongoose.connection.readyState === 0) {
-    await connectDb(process.env.MONGODB_URI);
-  }
+async function seed() {
+  await connectDb(process.env.MONGODB_URI);
   const now = Date.now();
 
   const users = await seedUsers();
@@ -193,7 +191,7 @@ async function seed(count = ARTICLE_COUNT) {
   await Article.deleteMany({ _id: { $in: oldArticleIds } });
 
   const articleDocs = [];
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < ARTICLE_COUNT; i++) {
     articleDocs.push(buildArticle(i, reporters, editor, now));
   }
   const articles = await Article.insertMany(articleDocs);
@@ -207,16 +205,11 @@ async function seed(count = ARTICLE_COUNT) {
     `[seed] ${users.length} users, ${articles.length} articles (${publishedCount} public), ` +
       `${stats.length} view-stat days, ${comments.length} comments`
   );
-  return { users, articles, stats, comments };
 }
 
-if (require.main === module) {
-  seed()
-    .catch((err) => {
-      console.error('[seed] failed:', err);
-      process.exitCode = 1;
-    })
-    .finally(() => mongoose.disconnect());
-}
-
-module.exports = { seed };
+seed()
+  .catch((err) => {
+    console.error('[seed] failed:', err);
+    process.exitCode = 1;
+  })
+  .finally(() => mongoose.disconnect());
