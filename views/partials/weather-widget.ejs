@@ -1,0 +1,39 @@
+<section class="weather-widget" id="weather-widget" aria-labelledby="weather-widget-heading">
+  <div class="weather-widget__header">
+    <h2 id="weather-widget-heading" class="weather-widget__title">מזג אוויר</h2>
+    <button type="button" class="weather-widget__refresh" id="weather-refresh" aria-label="רענון נתוני מזג אוויר" title="רענון">
+      <span aria-hidden="true">🔄</span>
+    </button>
+  </div>
+
+  <div class="weather-widget__body" id="weather-body" aria-live="polite">
+    <div class="weather-widget__loading" id="weather-loading">
+      <span>טוען נתוני מזג אוויר...</span>
+    </div>
+
+    <div class="weather-widget__details" id="weather-details" hidden>
+      <div class="weather-widget__main">
+        <span class="weather-widget__icon" id="weather-icon" aria-hidden="true">☀️</span>
+        <div class="weather-widget__temp-group">
+          <span class="weather-widget__temp" id="weather-temp">--</span>
+          <span class="weather-widget__unit">°C</span>
+        </div>
+      </div>
+      <p class="weather-widget__desc" id="weather-desc">--</p>
+      <div class="weather-widget__meta">
+        <span class="weather-widget__city" id="weather-city">תל אביב</span>
+        <span class="weather-widget__sep" aria-hidden="true">•</span>
+        <span class="weather-widget__wind" id="weather-wind">רוח: -- קמ"ש</span>
+      </div>
+      <p class="weather-widget__time">
+        עודכן: <time id="weather-updated-time">--</time>
+        <span id="weather-stale-badge" class="weather-widget__badge" hidden>נתונים שמורים</span>
+      </p>
+    </div>
+
+    <div class="weather-widget__error" id="weather-error" hidden>
+      <p class="weather-widget__error-msg" id="weather-error-msg">מידע מזג האוויר אינו זמין כעת</p>
+      <button type="button" class="button button--secondary button--small" id="weather-retry">נסו שוב</button>
+    </div>
+  </div>
+</section>
