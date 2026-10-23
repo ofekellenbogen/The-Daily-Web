@@ -6,6 +6,7 @@ async function workspace(req, res) {
     title: req.user.role === 'editor' ? 'אזור ניהול תוכן' : 'אזור העבודה שלי',
     ...await service.listArticles(req.user, req.query),
     selectedStatus: req.query.status || '',
+    selectedQuery: req.query.q || '',
     statusLabels: service.STATUS_LABELS
   });
 }

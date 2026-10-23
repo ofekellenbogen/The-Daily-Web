@@ -13,6 +13,9 @@ router.get('/staff/articles/:id', requireAuth, controller.editArticle);
 
 router.use('/api/staff', requireAuth, sameOrigin);
 router.get('/api/staff/articles', controller.list);
+router.get('/api/staff/articles/:id', async (req, res) => {
+  res.json({ data: await require('./staff.service').getArticle(req.params.id, req.user) });
+});
 router.post('/api/staff/articles', reporter, controller.create);
 router.patch('/api/staff/articles/:id', controller.update);
 router.post('/api/staff/articles/:id/submit', reporter, controller.submit);

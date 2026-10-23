@@ -8,8 +8,10 @@
   <%- include('../partials/layout/header') %>
   <main class="container staff-page">
     <h1><%= title %></h1>
-    <% if (currentUser.role === 'editor') { %>
+    <% { %>
       <form class="staff-filter" id="workspace-filter" method="get">
+        <label for="workspace-query">חיפוש לפי כותרת</label>
+        <input id="workspace-query" name="q" maxlength="100" value="<%= selectedQuery %>">
         <label for="workspace-status-filter">סינון לפי מצב</label>
         <select id="workspace-status-filter" name="status">
           <option value="">כל המצבים</option>

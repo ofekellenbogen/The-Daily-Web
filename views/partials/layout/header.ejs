@@ -6,7 +6,7 @@
       <% if (locals.currentUser) { %>
         <span><%= currentUser.displayName %></span>
         <a href="<%= currentUser.role === 'editor' ? '/editor' : '/reporter' %>"><%= currentUser.role === 'editor' ? 'ניהול תוכן' : 'אזור העבודה שלי' %></a>
-        <% if (currentUser.role === 'editor') { %><a href="/editor/analytics">סטטיסטיקות</a><% } %>
+        <% if (currentUser.role === 'editor') { %><a href="/editor/analytics">סטטיסטיקות</a><a href="/editor/data">ניהול נתונים</a><% } %>
         <form action="/logout" method="post"><button class="button" type="submit">התנתקות</button></form>
       <% } else { %>
         <a href="/login">התחברות</a>

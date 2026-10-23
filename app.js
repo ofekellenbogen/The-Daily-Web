@@ -28,6 +28,7 @@ app.use(deviceId);
 app.use(loadUser);
 
 app.use(authRoutes);
+app.use(require('./src/modules/admin/admin.routes'));
 app.use(staffRoutes);
 app.use(analyticsRoutes);
 app.use(publicRoutes);
