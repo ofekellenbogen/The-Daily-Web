@@ -1,15 +1,23 @@
 <header class="site-header">
   <div class="container site-header__inner">
-    <a class="brand" href="/">The Daily Web</a>
-    <p class="tagline">החדשות שחשובות, בזמן אמת</p>
+    <nav class="site-nav" aria-label="ניווט ראשי">
+      <a aria-current="<%= locals.currentPath === '/' || locals.currentPath?.startsWith('/articles/') ? 'page' : 'false' %>" href="/">חדשות</a>
+      <% if (locals.currentUser) { %>
+        <a aria-current="<%= ['/editor', '/reporter'].includes(locals.currentPath) || locals.currentPath?.startsWith('/staff/articles/') ? 'page' : 'false' %>" href="<%= currentUser.role === 'editor' ? '/editor' : '/reporter' %>"><%= currentUser.role === 'editor' ? 'ניהול תוכן' : 'אזור העבודה שלי' %></a>
+        <% if (currentUser.role === 'editor') { %><a aria-current="<%= locals.currentPath === '/editor/analytics' ? 'page' : 'false' %>" href="/editor/analytics">סטטיסטיקות</a><% } %>
+        <% if (currentUser.role === 'editor') { %><a aria-current="<%= locals.currentPath === '/editor/data' ? 'page' : 'false' %>" href="/editor/data">ניהול נתונים</a><% } %>
+      <% } %>
+    </nav>
+    <div class="site-masthead">
+      <a class="brand" href="/" lang="en" dir="ltr">The Daily <span>Web</span></a>
+      <p class="tagline">החדשות שחשובות, בזמן אמת</p>
+    </div>
     <nav class="staff-nav" aria-label="חשבון משתמש">
       <% if (locals.currentUser) { %>
-        <span><%= currentUser.displayName %></span>
-        <a href="<%= currentUser.role === 'editor' ? '/editor' : '/reporter' %>"><%= currentUser.role === 'editor' ? 'ניהול תוכן' : 'אזור העבודה שלי' %></a>
-        <% if (currentUser.role === 'editor') { %><a href="/editor/analytics">סטטיסטיקות</a><a href="/editor/data">ניהול נתונים</a><% } %>
-        <form action="/logout" method="post"><button class="button" type="submit">התנתקות</button></form>
+        <span class="account-identity"><span>שלום,</span> <strong><%= currentUser.displayName %></strong></span>
+        <form action="/logout" method="post"><button class="button button--secondary" type="submit">התנתקות</button></form>
       <% } else { %>
-        <a href="/login">התחברות</a>
+        <a class="account-login" aria-current="<%= locals.currentPath === '/login' ? 'page' : 'false' %>" href="/login">התחברות</a>
       <% } %>
     </nav>
   </div>
