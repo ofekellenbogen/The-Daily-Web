@@ -20,6 +20,30 @@ async function save() {
   return request(`/api/staff/articles${articleId ? `/${articleId}` : ''}`, articleId ? 'PATCH' : 'POST', content);
 }
 
+const liveWorkflow = {
+  save: { status: 'draft', label: 'בהכנה' },
+  submit: { status: 'pending', label: 'ממתינה לאישור עורך' },
+  approve: { status: 'published', label: 'פורסמה' },
+  return: { status: 'returned', label: 'הוחזרה לתיקונים' }
+};
+
+function updateWorkflowState(action, result) {
+  const next = liveWorkflow[action];
+  if (!next) return;
+  const state = document.getElementById('article-state');
+  if (!state) return;
+  const workflowStatus = result?.workflowStatus || next.status;
+  const statusLabel = result?.statusLabel || next.label;
+  state.className = `workflow-badge workflow-badge--${workflowStatus}`;
+  state.replaceChildren();
+  const dot = document.createElement('span');
+  dot.setAttribute('aria-hidden', 'true');
+  const text = document.createElement('strong');
+  text.textContent = `מצב: ${statusLabel}`;
+  state.append(dot, text);
+  editor.dataset.workflowStatus = workflowStatus;
+}
+
 // Keep one request sequence active, so repeated clicks cannot duplicate publication.
 async function run(action) {
   const buttons = [...editor.querySelectorAll('button')];
@@ -41,7 +65,7 @@ form.addEventListener('submit', (event) => {
   run(async () => {
     const result = await save();
     if (!articleId) return window.location.assign(`/staff/articles/${result.id}`);
-    document.getElementById('article-state').textContent = `מצב: ${result.statusLabel}`;
+    updateWorkflowState('save', { workflowStatus: 'draft', statusLabel: result.statusLabel });
     status.textContent = result.message;
   });
 });
@@ -58,10 +82,19 @@ editor.querySelectorAll('[data-action]').forEach((button) => {
     }
     run(async () => {
       if (action !== 'delete') await save();
-      await request(`/api/staff/articles/${articleId}${action === 'delete' ? '' : `/${action}`}`,
+      const result = await request(`/api/staff/articles/${articleId}${action === 'delete' ? '' : `/${action}`}`,
         action === 'delete' ? 'DELETE' : 'POST', action === 'return' ? { note } : undefined);
       if (action === 'delete') window.location.assign('/editor');
-      else window.location.reload();
+      else {
+        updateWorkflowState(action, result);
+        button.hidden = true;
+        if (action === 'approve' || action === 'return') {
+          editor.querySelectorAll('[data-action="approve"], [data-action="return"]').forEach((reviewButton) => {
+            reviewButton.hidden = true;
+          });
+        }
+        status.textContent = result?.message || 'הסטטוס עודכן';
+      }
     });
   });
 });

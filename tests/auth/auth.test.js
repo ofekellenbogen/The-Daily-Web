@@ -562,3 +562,23 @@ test('editor sees published and submitted versions while the public sees only ap
   assert.equal((await request(path, { method: 'DELETE', cookie: editorCookie })).status, 204);
   assert.equal((await request(publicPath)).status, 404);
 });
+
+test('published snapshot endpoint returns approved content after approval and enforces ownership', async () => {
+  const reporterCookie = await login();
+  const editorCookie = await login('editor');
+  const article = storeArticle({ authorId: users[0]._id, workingCopy: content, workflowStatus: 'pending' });
+  const url = `/api/staff/articles/${article._id}/published`;
+  assert.equal((await request(url)).status, 401);
+  const otherCookie = await login('other');
+  assert.equal((await request(url, { cookie: otherCookie })).status, 403);
+  assert.equal((await (await request(url, { cookie: editorCookie })).json()).data, null);
+  assert.equal((await request(`/api/staff/articles/${article._id}/approve`, { method: 'POST', cookie: editorCookie })).status, 200);
+  const response = await request(url, { cookie: editorCookie });
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  const { data } = await response.json();
+  assert.equal(data.title, content.title);
+  assert.equal(data.version, 1);
+  assert.equal(data.categoryLabel, Article.CATEGORIES.tech);
+  await request(`/api/staff/articles/${article._id}`, { method: 'PATCH', cookie: reporterCookie, body: { ...content, title: 'Private new title' } });
+  assert.equal((await (await request(url, { cookie: editorCookie })).json()).data.title, content.title);
+});
