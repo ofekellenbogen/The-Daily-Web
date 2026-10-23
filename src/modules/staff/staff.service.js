@@ -17,10 +17,14 @@ async function listArticles(user, query = {}) {
   if (status) filter.workflowStatus = status;
   const pageNumber = Number(page);
   const articles = await Article.find(filter)
-    .select('authorId workingCopy.title workflowStatus editorNote')
+    .select('authorId workingCopy.title workingCopy.summary workingCopy.category workingCopy.imageUrl publishedVersion.title publishedVersion.imageUrl workflowStatus editorNote')
     .sort({ updatedAt: -1, _id: -1 }).skip((pageNumber - 1) * 20).limit(21)
     .populate('authorId', 'displayName').lean();
-  return { articles: articles.slice(0, 20), nextPage: articles.length > 20 ? pageNumber + 1 : null };
+  const pageArticles = articles.slice(0, 20).map((article) => ({
+    ...article,
+    imageUrl: article.workingCopy?.imageUrl || article.publishedVersion?.imageUrl || ''
+  }));
+  return { articles: pageArticles, nextPage: articles.length > 20 ? pageNumber + 1 : null };
 }
 
 async function getArticle(id, user) {
@@ -134,4 +138,18 @@ async function deleteArticle(id, user) {
   ]);
 }
 
-module.exports = { STATUS_LABELS, listArticles, getArticle, createArticle, updateArticle, transitionArticle, deleteArticle };
+async function saveDraft(id, user, input) {
+  if (!isObjectId(id)) throw new HttpError(400, 'INVALID_ID', 'מזהה טיוטה לא תקין');
+  const existing = await Article.findById(id);
+  if (existing) return updateArticle(id, user, input);
+  if (user.role !== 'reporter') throw new HttpError(403, 'FORBIDDEN', 'יצירת טיוטה מותרת לכתב בלבד');
+  const content = parseContent(input);
+  try {
+    return await Article.create({ _id: id, authorId: user._id, workingCopy: content });
+  } catch (err) {
+    if (err.code !== 11000) throw err;
+    return updateArticle(id, user, input);
+  }
+}
+
+module.exports = { STATUS_LABELS, listArticles, getArticle, createArticle, updateArticle, transitionArticle, deleteArticle, saveDraft };

@@ -128,6 +128,39 @@ after(async () => {
   mock.restoreAll();
 });
 
+test('autosave creates one durable draft, resumes after restart and enforces ownership/review locks', async () => {
+  const cookie = await login();
+  const id = String(new Article()._id);
+  const url = `/api/staff/drafts/${id}`;
+  assert.equal((await request(url, { method: 'PUT', body: content })).status, 401);
+  for (const title of ['', 'First autosave', 'Latest autosave']) {
+    const response = await request(url, { method: 'PUT', cookie, body: { ...content, title } });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).id, id);
+  }
+  assert.equal(articles.size, 1);
+  await stopServer();
+  await startServer(app);
+  assert.match(await (await request(`/staff/articles/${id}`, { cookie })).text(), /Latest autosave/);
+  const other = await login('other');
+  assert.equal((await request(url, { method: 'PUT', cookie: other, body: content })).status, 403);
+  articles.get(id).workflowStatus = 'pending';
+  assert.equal((await request(url, { method: 'PUT', cookie, body: content })).status, 409);
+  assert.equal((await request('/api/staff/drafts/invalid', { method: 'PUT', cookie, body: content })).status, 400);
+  assert.equal((await request(url, { method: 'PUT', cookie, body: content, headers: { Origin: 'https://other.example' } })).status, 403);
+});
+
+test('autosaving a published update never changes the approved snapshot', async () => {
+  const cookie = await login();
+  const article = storeArticle({ authorId: users[0]._id, workingCopy: content, workflowStatus: 'published',
+    publishedVersion: { ...content, version: 1, publishedAt: new Date() } });
+  const response = await request(`/api/staff/drafts/${article._id}`, { method: 'PUT', cookie, body: { ...content, body: 'Autosaved revision' } });
+  assert.equal(response.status, 200);
+  assert.equal(article.workingCopy.body, 'Autosaved revision');
+  assert.equal(article.publishedVersion.body, content.body);
+  assert.equal(article.workflowStatus, 'draft');
+});
+
 test('passwords use salted one-way hashes and reject wrong or placeholder hashes', async () => {
   const first = await hashPassword(password);
   const second = await hashPassword(password);
@@ -528,4 +561,24 @@ test('editor sees published and submitted versions while the public sees only ap
   assert.equal(article.publicationHistory.length, 2);
   assert.equal((await request(path, { method: 'DELETE', cookie: editorCookie })).status, 204);
   assert.equal((await request(publicPath)).status, 404);
+});
+
+test('published snapshot endpoint returns approved content after approval and enforces ownership', async () => {
+  const reporterCookie = await login();
+  const editorCookie = await login('editor');
+  const article = storeArticle({ authorId: users[0]._id, workingCopy: content, workflowStatus: 'pending' });
+  const url = `/api/staff/articles/${article._id}/published`;
+  assert.equal((await request(url)).status, 401);
+  const otherCookie = await login('other');
+  assert.equal((await request(url, { cookie: otherCookie })).status, 403);
+  assert.equal((await (await request(url, { cookie: editorCookie })).json()).data, null);
+  assert.equal((await request(`/api/staff/articles/${article._id}/approve`, { method: 'POST', cookie: editorCookie })).status, 200);
+  const response = await request(url, { cookie: editorCookie });
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  const { data } = await response.json();
+  assert.equal(data.title, content.title);
+  assert.equal(data.version, 1);
+  assert.equal(data.categoryLabel, Article.CATEGORIES.tech);
+  await request(`/api/staff/articles/${article._id}`, { method: 'PATCH', cookie: reporterCookie, body: { ...content, title: 'Private new title' } });
+  assert.equal((await (await request(url, { cookie: editorCookie })).json()).data.title, content.title);
 });

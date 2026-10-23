@@ -74,7 +74,9 @@ test('a slower old filter response cannot overwrite the latest selection', async
   responses[0](result('outdated'));
   await first;
   const card = page.list.children[0].children[0];
-  assert.equal(card.children[0].children[0].textContent, 'latest');
+  const heading = card.children.find((child) => child.children?.[0]?.textContent === 'latest');
+  assert.ok(heading);
+  assert.equal(heading.children[0].textContent, 'latest');
   assert.equal(page.urls.at(-1), '/editor?status=published');
 });
 
@@ -112,14 +114,18 @@ test('reporter workspace filters by status and does not render author label', as
   assert.equal(page.list.children.length, 2);
 
   const card1 = page.list.children[0].children[0];
-  assert.equal(card1.children[0].children[0].textContent, 'טיוטה ראשונה');
-  assert.equal(card1.children[1].textContent, 'מצב: בהכנה');
+  const heading1 = card1.children.find((c) => c.children?.[0]?.textContent === 'טיוטה ראשונה');
+  assert.ok(heading1);
+  assert.equal(heading1.children[0].textContent, 'טיוטה ראשונה');
+  assert.ok(card1.children.some((c) => c.textContent === 'מצב: בהכנה'));
   // In reporter view, no "כתב: ..." paragraph should be present
   assert.equal(card1.children.some((c) => c.textContent?.startsWith('כתב:')), false);
 
   const card2 = page.list.children[1].children[0];
-  assert.equal(card2.children[0].children[0].textContent, 'הוחזרה');
-  assert.equal(card2.children[1].textContent, 'מצב: הוחזרה לתיקונים');
-  assert.equal(card2.children[2].textContent, 'הערת עורך: נא לתקן כותרת');
+  const heading2 = card2.children.find((c) => c.children?.[0]?.textContent === 'הוחזרה');
+  assert.ok(heading2);
+  assert.equal(heading2.children[0].textContent, 'הוחזרה');
+  assert.ok(card2.children.some((c) => c.textContent === 'מצב: הוחזרה לתיקונים'));
+  assert.ok(card2.children.some((c) => c.textContent === 'הערת עורך: נא לתקן כותרת'));
 });
 

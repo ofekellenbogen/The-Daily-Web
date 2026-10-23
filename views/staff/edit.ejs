@@ -8,15 +8,13 @@
   <%- include('../partials/layout/header') %>
   <% const content = article?.workingCopy || {}; %>
   <% const locked = currentUser.role === 'reporter' && article?.workflowStatus === 'pending'; %>
-  <main class="container staff-page" id="article-editor" data-article-id="<%= article?._id || '' %>">
+  <main class="container staff-page article-workspace" id="article-editor" data-article-id="<%= article?._id || '' %>">
     <div class="staff-page__heading">
       <h1><%= title %></h1>
       <a href="<%= currentUser.role === 'editor' ? '/editor' : '/reporter' %>">חזרה לאזור העבודה</a>
     </div>
 
-    <% if (article) { %>
-      <p id="article-state">מצב: <span class="status-badge status-badge--<%= article.workflowStatus %>"><%= statusLabels[article.workflowStatus] %></span></p>
-    <% } %>
+    <% if (article) { %><p id="article-state" class="workflow-badge workflow-badge--<%= article.workflowStatus %>"><span aria-hidden="true"></span>מצב: <strong><%= statusLabels[article.workflowStatus] %></strong></p><% } %>
 
     <% if (article?.editorNote) { %>
       <div class="staff-callout staff-callout--returned" role="alert">
@@ -38,9 +36,9 @@
       </div>
     <% } %>
 
-    <p id="staff-status" role="status" aria-live="polite"></p>
+    <p id="staff-status" class="save-feedback" role="status" aria-live="polite" aria-atomic="true"></p>
     <form id="article-form" class="staff-form">
-      <fieldset <%= locked ? 'disabled' : '' %>>
+      <fieldset class="draft-editor-panel" <%= locked ? 'disabled' : '' %>>
         <legend><%= currentUser.role === 'editor' ? (article?.workflowStatus === 'pending' ? 'התוכן שהוגש לאישור' : 'גרסת העבודה') : 'תוכן הכתבה' %></legend>
         <label for="article-title">כותרת</label>
         <input id="article-title" name="title" maxlength="200" value="<%= content.title || '' %>" required>
@@ -57,7 +55,11 @@
         </select>
         <label for="article-image">כתובת תמונה</label>
         <input id="article-image" name="imageUrl" type="url" maxlength="2000" dir="ltr" value="<%= content.imageUrl || '' %>">
-        <button class="button" type="submit">שמירת טיוטה</button>
+          <figure class="article-image-preview" id="draft-image-preview" <%= content.imageUrl ? '' : 'hidden' %>>
+            <img <% if (content.imageUrl) { %>src="<%= content.imageUrl %>"<% } %> alt="תצוגה מקדימה של תמונת הכתבה" loading="lazy">
+            <figcaption>תצוגה מקדימה של תמונת גרסת העבודה</figcaption>
+          </figure>
+        <button class="button" type="submit">שמירת כתבה</button>
       </fieldset>
     </form>
 
@@ -79,7 +81,7 @@
         <% } %>
       </section>
       <% if (currentUser.role === 'editor' && article.publishedVersion) { %>
-        <section class="staff-card" aria-labelledby="published-title">
+        <section id="approved-snapshot" class="staff-card approved-snapshot-card" aria-labelledby="published-title">
           <h2 id="published-title">הגרסה המפורסמת כעת</h2>
           <p>גרסה <%= article.publishedVersion.version %> · קטגוריה: <%= categories[article.publishedVersion.category] %></p>
           <h3><%= article.publishedVersion.title %></h3>
@@ -88,13 +90,18 @@
             <img class="published-image" src="<%= article.publishedVersion.imageUrl %>" alt="<%= article.publishedVersion.title %>" loading="lazy">
             <p class="published-body">תמונה: <%= article.publishedVersion.imageUrl %></p>
           <% } %>
-          <p class="published-body"><%= article.publishedVersion.body %></p>
+          <div class="approved-snapshot-card__body">
+            <p class="published-body"><%= article.publishedVersion.body %></p>
+          </div>
         </section>
       <% } %>
     <% } %>
     <noscript><p>יש להפעיל JavaScript כדי לשמור ולנהל כתבות.</p></noscript>
   </main>
+  <p id="snapshot-status" class="container" role="status" aria-live="polite"></p>
+  <script src="/js/editor-view.js" data-initial-status="<%= article?.workflowStatus || 'draft' %>" data-role="<%= currentUser.role %>" defer></script>
   <%- include('../partials/layout/footer') %>
-  <script src="/js/staff.js" defer></script>
+  <span id="draft-context" hidden data-user-id="<%= currentUser._id %>" data-role="<%= currentUser.role %>" data-workflow-status="<%= article?.workflowStatus || 'draft' %>"></span>
+  <script src="/js/autosave.js" defer></script>
 </body>
 </html>

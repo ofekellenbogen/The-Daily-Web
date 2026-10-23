@@ -29,7 +29,8 @@
     <ul class="article-list" id="workspace-articles" data-user-role="<%= currentUser.role %>" aria-label="כתבות לניהול">
       <% for (const article of articles) { %>
         <li>
-          <article class="staff-card staff-card--<%= article.workflowStatus %>">
+          <article class="staff-card workspace-card staff-card--<%= article.workflowStatus %>" data-workflow-status="<%= article.workflowStatus %>">
+            <% if (article.imageUrl) { %><img class="workspace-card__image" src="<%= article.imageUrl %>" alt="" loading="lazy"><% } else { %><div class="workspace-card__image workspace-card__image--empty" aria-hidden="true">The Daily Web</div><% } %>
             <h2><a href="/staff/articles/<%= article._id %>"><%= article.workingCopy.title || 'ללא כותרת' %></a></h2>
             <p class="staff-card__status">מצב: <span class="status-badge status-badge--<%= article.workflowStatus %>"><%= statusLabels[article.workflowStatus] %></span></p>
             <% if (currentUser.role === 'editor') { %><p class="staff-card__author">כתב: <%= article.authorId?.displayName || 'משתמש לא זמין' %></p><% } %>
