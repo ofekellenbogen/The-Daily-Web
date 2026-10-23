@@ -20,7 +20,7 @@ function articleCard(article, statusLabels) {
   } else {
     const placeholder = document.createElement('div');
     placeholder.className = 'workspace-card__image workspace-card__image--empty';
-    placeholder.setAttribute('aria-hidden', 'true');
+    placeholder.setAttribute?.('aria-hidden', 'true');
     placeholder.textContent = 'The Daily Web';
     card.append(placeholder);
   }
