@@ -9,7 +9,7 @@ function articleCard(article, statusLabels) {
   const card = document.createElement('article');
   card.className = 'staff-card workspace-card';
   card.dataset.workflowStatus = article.workflowStatus;
-  const imageUrl = article.workingCopy.imageUrl || article.publishedVersion?.imageUrl;
+  const imageUrl = article.imageUrl;
   if (imageUrl) {
     const image = document.createElement('img');
     image.className = 'workspace-card__image';
@@ -17,6 +17,12 @@ function articleCard(article, statusLabels) {
     image.alt = '';
     image.loading = 'lazy';
     card.append(image);
+  } else {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'workspace-card__image workspace-card__image--empty';
+    placeholder.setAttribute('aria-hidden', 'true');
+    placeholder.textContent = 'The Daily Web';
+    card.append(placeholder);
   }
   const heading = document.createElement('h2');
   const link = document.createElement('a');

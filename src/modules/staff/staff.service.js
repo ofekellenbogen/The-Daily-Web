@@ -20,7 +20,11 @@ async function listArticles(user, query = {}) {
     .select('authorId workingCopy.title workingCopy.summary workingCopy.category workingCopy.imageUrl publishedVersion.title publishedVersion.imageUrl workflowStatus editorNote')
     .sort({ updatedAt: -1, _id: -1 }).skip((pageNumber - 1) * 20).limit(21)
     .populate('authorId', 'displayName').lean();
-  return { articles: articles.slice(0, 20), nextPage: articles.length > 20 ? pageNumber + 1 : null };
+  const pageArticles = articles.slice(0, 20).map((article) => ({
+    ...article,
+    imageUrl: article.workingCopy?.imageUrl || article.publishedVersion?.imageUrl || ''
+  }));
+  return { articles: pageArticles, nextPage: articles.length > 20 ? pageNumber + 1 : null };
 }
 
 async function getArticle(id, user) {
