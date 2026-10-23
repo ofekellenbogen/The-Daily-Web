@@ -8,14 +8,14 @@
   <%- include('../partials/layout/header') %>
   <% const content = article?.workingCopy || {}; %>
   <% const locked = currentUser.role === 'reporter' && article?.workflowStatus === 'pending'; %>
-  <main class="container staff-page staff-editor" id="article-editor" data-article-id="<%= article?._id || '' %>">
+  <main class="container staff-page article-workspace" id="article-editor" data-article-id="<%= article?._id || '' %>">
     <h1><%= title %></h1>
-    <% if (article) { %><p id="article-state">מצב: <%= statusLabels[article.workflowStatus] %></p><% } %>
+    <% if (article) { %><p id="article-state" class="workflow-badge workflow-badge--<%= article.workflowStatus %>"><span aria-hidden="true"></span>מצב: <strong><%= statusLabels[article.workflowStatus] %></strong></p><% } %>
     <% if (article?.editorNote) { %><p class="staff-card">הערת עורך: <%= article.editorNote %></p><% } %>
     <% if (locked) { %><p>הכתבה ממתינה לאישור עורך ולא ניתן לערוך אותה כרגע.</p><% } %>
     <p id="staff-status" role="status" aria-live="polite"></p>
     <form id="article-form" class="staff-form">
-      <fieldset class="working-copy-panel" <%= locked ? 'disabled' : '' %>>
+      <fieldset class="draft-editor-panel" <%= locked ? 'disabled' : '' %>>
         <legend><%= currentUser.role === 'editor' ? (article?.workflowStatus === 'pending' ? 'התוכן שהוגש לאישור' : 'גרסת העבודה') : 'תוכן הכתבה' %></legend>
         <% if (article?.publishedVersion) { %><p>השינויים בגרסת העבודה יוצגו לציבור רק לאחר אישור עורך.</p><% } %>
         <label for="article-title">כותרת</label>
@@ -51,7 +51,7 @@
         <% } %>
       </section>
       <% if (currentUser.role === 'editor' && article.publishedVersion) { %>
-        <section class="staff-card published-version-card" aria-labelledby="published-title">
+        <section class="staff-card approved-snapshot-card" aria-labelledby="published-title">
           <h2 id="published-title">הגרסה המפורסמת כעת</h2>
           <p>גרסה <%= article.publishedVersion.version %> · קטגוריה: <%= categories[article.publishedVersion.category] %></p>
           <h3><%= article.publishedVersion.title %></h3>
@@ -60,7 +60,7 @@
             <img class="published-image" src="<%= article.publishedVersion.imageUrl %>" alt="<%= article.publishedVersion.title %>" loading="lazy">
             <p class="published-body">תמונה: <%= article.publishedVersion.imageUrl %></p>
           <% } %>
-          <div class="published-version-card__content">
+          <div class="approved-snapshot-card__body">
             <p class="published-body"><%= article.publishedVersion.body %></p>
           </div>
         </section>

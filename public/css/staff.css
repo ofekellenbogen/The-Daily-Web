@@ -1,6 +1,16 @@
 .staff-page { padding-top: 24px; max-width: 900px; }
-.staff-editor { padding-bottom: 48px; }
-.working-copy-panel { box-shadow: 0 10px 26px rgba(22, 34, 39, .06); }
+.article-workspace { padding-bottom: 48px; }
+.article-workspace > h1 { margin-bottom: 8px; }
+.workflow-badge { display: inline-flex; align-items: center; gap: 8px; width: fit-content; margin: 0 0 20px; padding: 7px 12px; border: 1px solid var(--color-border); border-radius: 999px; color: var(--color-muted); background: var(--color-surface); }
+.workflow-badge > span { width: 8px; height: 8px; border-radius: 50%; background: #8b949e; }
+.workflow-badge--published { border-color: #9bd3c3; background: #effaf6; color: #176b54; }
+.workflow-badge--published > span { background: #1d9b72; }
+.workflow-badge--pending { border-color: #f1cf8a; background: #fff9eb; color: #805b12; }
+.workflow-badge--pending > span { background: #d89217; }
+.workflow-badge--returned { border-color: #efb0b0; background: #fff3f3; color: #8c3131; }
+.workflow-badge--returned > span { background: #c54b4b; }
+.draft-editor-panel { box-shadow: 0 10px 26px rgba(22, 34, 39, .06); }
+.draft-editor-panel:focus-within { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(36, 119, 98, .12); }
 .login-card { max-width: 420px; margin: 24px auto; }
 .login-card, .staff-card { padding: 20px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); }
 .staff-form, .staff-form fieldset { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
@@ -14,8 +24,8 @@
 .article-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .staff-card h2 { margin-top: 0; overflow-wrap: anywhere; }
 .staff-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 24px 0; }
-.published-version-card { margin-top: 28px; border-color: #a8d8cd; background: linear-gradient(135deg, #f4fcfa, var(--color-surface)); }
-.published-version-card__content { margin-top: 18px; padding-top: 18px; border-top: 1px solid #cfe8e1; }
+.approved-snapshot-card { margin-top: 28px; border-color: #a8d8cd; background: linear-gradient(135deg, #f4fcfa, var(--color-surface)); }
+.approved-snapshot-card__body { margin-top: 18px; padding-top: 18px; border-top: 1px solid #cfe8e1; }
 .published-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75; }
 .published-image { display: block; width: 100%; max-height: 280px; object-fit: contain; border-radius: 8px; background: #eaf4f1; }
 .staff-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
