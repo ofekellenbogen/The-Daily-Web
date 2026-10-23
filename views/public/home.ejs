@@ -13,63 +13,54 @@
       <span class="feed-heading__rule" aria-hidden="true"></span>
     </div>
 
-    <div class="home-layout">
-      <div class="home-layout__main">
-        <form class="feed-controls" id="feed-controls" role="search" novalidate>
-          <div class="field field--search">
-            <label for="feed-q">חיפוש</label>
-            <input type="search" id="feed-q" name="q" maxlength="100" placeholder="חיפוש לפי כותרת..." autocomplete="off">
-          </div>
-
-          <div class="field">
-            <label for="feed-category">קטגוריה</label>
-            <select id="feed-category" name="category">
-              <option value="">כל הקטגוריות</option>
-              <% for (const [value, label] of Object.entries(categories)) { %>
-                <option value="<%= value %>"><%= label %></option>
-              <% } %>
-            </select>
-          </div>
-
-          <div class="field">
-            <label for="feed-seen">הצג</label>
-            <select id="feed-seen" name="seen">
-              <option value="all">הכל</option>
-              <option value="unseen">כתבות שלא צפיתי בהן</option>
-              <option value="seen">כתבות שצפיתי בהן</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label for="feed-sort">מיון</label>
-            <select id="feed-sort" name="sort">
-              <option value="date">תאריך פרסום</option>
-              <option value="popularity">פופולריות</option>
-            </select>
-          </div>
-        </form>
-
-        <ol class="feed-list" id="feed-list" aria-label="כתבות"></ol>
-
-        <div class="feed-footer">
-          <p class="feed-status" id="feed-status" role="status" aria-live="polite"></p>
-          <button type="button" class="button" id="feed-retry" hidden>נסו שוב</button>
-        </div>
-        <div id="feed-sentinel" aria-hidden="true"></div>
-
-        <noscript>
-          <p class="feed-status">כדי לצפות בפיד החדשות יש להפעיל JavaScript בדפדפן.</p>
-        </noscript>
+    <form class="feed-controls" id="feed-controls" role="search" novalidate>
+      <div class="field field--search">
+        <label for="feed-q">חיפוש</label>
+        <input type="search" id="feed-q" name="q" maxlength="100" placeholder="חיפוש לפי כותרת..." autocomplete="off">
       </div>
 
-      <aside class="home-layout__sidebar" aria-label="מידע נוסף">
-        <%- include('../partials/weather-widget') %>
-      </aside>
+      <div class="field">
+        <label for="feed-category">קטגוריה</label>
+        <select id="feed-category" name="category">
+          <option value="">כל הקטגוריות</option>
+          <% for (const [value, label] of Object.entries(categories)) { %>
+            <option value="<%= value %>"><%= label %></option>
+          <% } %>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="feed-seen">הצג</label>
+        <select id="feed-seen" name="seen">
+          <option value="all">הכל</option>
+          <option value="unseen">כתבות שלא צפיתי בהן</option>
+          <option value="seen">כתבות שצפיתי בהן</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="feed-sort">מיון</label>
+        <select id="feed-sort" name="sort">
+          <option value="date">תאריך פרסום</option>
+          <option value="popularity">פופולריות</option>
+        </select>
+      </div>
+    </form>
+
+    <ol class="feed-list" id="feed-list" aria-label="כתבות"></ol>
+
+    <div class="feed-footer">
+      <p class="feed-status" id="feed-status" role="status" aria-live="polite"></p>
+      <button type="button" class="button" id="feed-retry" hidden>נסו שוב</button>
     </div>
+    <div id="feed-sentinel" aria-hidden="true"></div>
+
+    <noscript>
+      <p class="feed-status">כדי לצפות בפיד החדשות יש להפעיל JavaScript בדפדפן.</p>
+    </noscript>
   </main>
 
   <%- include('../partials/layout/footer') %>
   <script src="/js/feed.js" defer></script>
-  <script src="/js/weather.js" defer></script>
 </body>
 </html>
