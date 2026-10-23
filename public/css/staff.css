@@ -21,14 +21,14 @@
 .staff-form textarea, .staff-actions textarea { resize: vertical; }
 .staff-form .button { align-self: flex-start; margin-top: 8px; }
 .form-error { color: var(--color-primary-dark); }
-.article-list { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.article-list { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: stretch; }
 .article-list > li { min-width: 0; }
 .staff-card h2 { margin-top: 0; overflow-wrap: anywhere; }
-.workspace-card { overflow: hidden; transition: transform 160ms ease, box-shadow 160ms ease; }
+.workspace-card { display: flex; min-height: 352px; height: 100%; flex-direction: column; overflow: hidden; transition: transform 160ms ease, box-shadow 160ms ease; }
 .workspace-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(29, 48, 56, .12); }
 .workspace-card__image { width: calc(100% + 40px); height: 180px; margin: -20px -20px 16px; object-fit: cover; background: #edf2f1; }
 .workspace-card__image--empty { display: grid; place-items: center; color: #6b7d7a; background: linear-gradient(135deg, #e3efeb, #f5f8f7); font-size: 1.05rem; font-weight: 750; letter-spacing: .08em; }
-.workspace-card h2 { margin-bottom: 10px; }
+.workspace-card h2 { min-height: 3.1em; margin-bottom: 10px; }
 .workspace-card > p:first-of-type { display: inline-flex; align-items: center; gap: 8px; margin: 2px 0 0; padding: 6px 11px; border: 1px solid var(--color-border); border-radius: 999px; color: var(--color-muted); background: #f8faf9; font-size: .84rem; }
 .workspace-card > p:first-of-type::before { content: ''; width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #8b949e; }
 .workspace-card[data-workflow-status="draft"] > p:first-of-type { border-color: #b8cbe8; background: #f2f6fd; color: #315b91; }
@@ -129,6 +129,9 @@
   .analytics-totals > div { padding-inline-start: 16px; }
   .analytics-totals dd { font-size: 1.75rem; }
   .analytics-chart { height: 280px; }
+}
+@media (min-width: 601px) and (max-width: 900px) {
+  .article-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 480px) {
   .login-card, .staff-card { padding: 14px; }
