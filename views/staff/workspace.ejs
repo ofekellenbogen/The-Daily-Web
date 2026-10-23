@@ -28,6 +28,8 @@
       <% for (const article of articles) { %>
         <li>
           <article class="staff-card workspace-card" data-workflow-status="<%= article.workflowStatus %>">
+            <% const cardImage = article.workingCopy.imageUrl || article.publishedVersion?.imageUrl; %>
+            <% if (cardImage) { %><img class="workspace-card__image" src="<%= cardImage %>" alt="" loading="lazy"><% } %>
             <h2><a href="/staff/articles/<%= article._id %>"><%= article.workingCopy.title || 'ללא כותרת' %></a></h2>
             <p>מצב: <%= statusLabels[article.workflowStatus] %></p>
             <% if (currentUser.role === 'editor') { %><p>כתב: <%= article.authorId?.displayName || 'משתמש לא זמין' %></p><% } %>

@@ -17,7 +17,7 @@ async function listArticles(user, query = {}) {
   if (status) filter.workflowStatus = status;
   const pageNumber = Number(page);
   const articles = await Article.find(filter)
-    .select('authorId workingCopy.title workflowStatus editorNote')
+    .select('authorId workingCopy.title workingCopy.summary workingCopy.category workingCopy.imageUrl publishedVersion.title publishedVersion.imageUrl workflowStatus editorNote')
     .sort({ updatedAt: -1, _id: -1 }).skip((pageNumber - 1) * 20).limit(21)
     .populate('authorId', 'displayName').lean();
   return { articles: articles.slice(0, 20), nextPage: articles.length > 20 ? pageNumber + 1 : null };

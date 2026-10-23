@@ -32,6 +32,12 @@
         </select>
         <label for="article-image">כתובת תמונה</label>
         <input id="article-image" name="imageUrl" type="url" maxlength="2000" dir="ltr" value="<%= content.imageUrl || '' %>">
+        <% if (content.imageUrl) { %>
+          <figure class="article-image-preview">
+            <img src="<%= content.imageUrl %>" alt="תצוגה מקדימה של תמונת הכתבה" loading="lazy">
+            <figcaption>תצוגה מקדימה של תמונת גרסת העבודה</figcaption>
+          </figure>
+        <% } %>
         <button class="button" type="submit">שמירת כתבה</button>
       </fieldset>
     </form>
