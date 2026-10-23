@@ -173,6 +173,63 @@ test('login redirects by the database role, stores only a token hash, and sets c
   }
 });
 
+test('homepage separates page navigation from account actions for guests, reporters and editors', async () => {
+  for (const role of [null, 'reporter', 'editor']) {
+    const cookie = role ? await login(role) : undefined;
+    const response = await request('/', { cookie });
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    const navigation = html.match(/<nav class="site-nav"[^>]*>([\s\S]*?)<\/nav>/)?.[1];
+    const account = html.match(/<nav class="staff-nav"[^>]*>([\s\S]*?)<\/nav>/)?.[1];
+    assert.ok(navigation);
+    assert.ok(account);
+    assert.match(html, /class="site-masthead"/);
+    assert.match(html, /<h1>החדשות האחרונות<\/h1>/);
+    assert.match(navigation, /href="\/"/);
+    assert.doesNotMatch(navigation, /action="\/logout"|href="\/login"|account-identity/);
+    assert.doesNotMatch(account, /href="\/editor|href="\/reporter/);
+    if (role) {
+      assert.match(navigation, new RegExp(`href="/${role}"`));
+      assert.match(account, /class="account-identity"/);
+      assert.match(account, new RegExp(`<strong>${role}</strong>`));
+      assert.match(account, /action="\/logout" method="post"/);
+      assert.equal(navigation.includes('href="/editor/analytics"'), role === 'editor');
+    } else {
+      assert.match(account, /href="\/login"/);
+      assert.doesNotMatch(navigation, /href="\/editor|href="\/reporter/);
+    }
+  }
+});
+
+test('navigation marks exactly one active section, including nested pages and trailing slashes', async () => {
+  const reporter = users.find((user) => user.username === 'reporter');
+  const article = storeArticle({ authorId: reporter._id, workingCopy: content,
+    publishedVersion: { ...content, version: 1, publishedAt: new Date() } });
+  const cookies = { editor: await login('editor'), reporter: await login('reporter') };
+  for (const [path, role, target] of [
+    ['/', null, '/'], ['/?category=tech', 'editor', '/'],
+    [`/articles/${article._id}`, null, '/'],
+    ['/editor', 'editor', '/editor'], ['/editor/?status=draft', 'editor', '/editor'],
+    ['/editor/analytics', 'editor', '/editor/analytics'],
+    ['/editor/analytics/?start=2026-10-20', 'editor', '/editor/analytics'],
+    ['/reporter', 'reporter', '/reporter'], ['/staff/articles/new', 'reporter', '/reporter'],
+    [`/staff/articles/${article._id}`, 'editor', '/editor']
+  ]) {
+    const response = await request(path, { cookie: cookies[role] });
+    assert.equal(response.status, 200, path);
+    const html = await response.text();
+    const navigation = html.match(/<nav class="site-nav"[^>]*>([\s\S]*?)<\/nav>/)?.[1];
+    assert.ok(navigation, path);
+    assert.equal((navigation.match(/aria-current="page"/g) || []).length, 1, path);
+    assert.ok(navigation.includes(`aria-current="page" href="${target}"`), path);
+  }
+  const loginPage = await request('/login');
+  const html = await loginPage.text();
+  assert.match(html, /class="account-login" aria-current="page"/);
+  const navigation = html.match(/<nav class="site-nav"[^>]*>([\s\S]*?)<\/nav>/)?.[1];
+  assert.doesNotMatch(navigation, /aria-current="page"/);
+});
+
 test('guests can read public pages but cannot access staff pages or any staff mutation', async () => {
   assert.equal((await request('/')).status, 200);
   for (const path of ['/reporter', '/editor', '/staff/articles/new']) {

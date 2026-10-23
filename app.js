@@ -26,6 +26,10 @@ app.use(express.json({ limit: '256kb' }));
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 app.use(deviceId);
 app.use(loadUser);
+app.use((req, res, next) => {
+  res.locals.currentPath = req.path.replace(/\/+$/, '') || '/';
+  next();
+});
 
 app.use(authRoutes);
 app.use(staffRoutes);
