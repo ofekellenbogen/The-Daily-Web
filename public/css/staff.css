@@ -137,3 +137,6 @@
   .login-card, .staff-card { padding: 14px; }
   .staff-actions .button { width: 100%; }
 }
+.save-feedback { display: flex; align-items: center; gap: 7px; min-height: 1.6em; margin: 12px 0 18px; color: #68736e; font-size: .82rem; font-weight: 400; line-height: 1.6; }
+.save-feedback--saved::before { content: '\2713'; color: #5b8071; font-size: .9rem; }
+.save-feedback.form-error { color: var(--color-primary-dark); font-size: .875rem; }

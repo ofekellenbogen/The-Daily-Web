@@ -2,6 +2,26 @@
 
 A news site built with Node.js 20+, Express, EJS, MongoDB/Mongoose and vanilla JavaScript. The server follows MVC: models store data, controllers handle requests, services contain the application logic, and EJS views render HTML. No additional authentication or frontend libraries are needed.
 
+## Automatic saving (issue #10)
+
+The editing page saves on input/change without a Save click, using serialized PUT requests to
+`/api/staff/drafts/:id`. A stable draft ID makes creation and retries idempotent. MongoDB is the
+source for resuming a saved draft after refresh, server restart or on another computer.
+The approved snapshot is never updated by autosave. Pending articles remain locked to reporters.
+An account-scoped browser backup protects unsent text on the same computer; network failures show
+an error and retry automatically. Closing while a request is pending triggers a browser warning.
+Wait for “כל השינויים נשמרו” before switching computers: offline text cannot reach another device.
+Submission waits for saving to finish and remains an explicit action.
+
+Manual check: start a new article and type without clicking Save; wait for the saved indicator,
+refresh, reopen from the workspace and sign in on another computer. Repeat on a published article,
+checking that the public page retains its approved content. Disconnect networking, type, reconnect
+and confirm the pending text is saved. `npm test` covers draft retries, permissions, review locks,
+server restart and approved snapshot isolation with mocked persistence.
+Run `node scripts/verify/features.js autosave` to repeat the live HTTP/MongoDB checks in an isolated
+temporary database, removed afterward. Live verification passed, including reconnecting to persisted
+draft/session data. CRUD and the article workspace redesign (#11) are separate pull requests.
+
 ## Shared database setup
 
 For the team's MongoDB Atlas database, ask a teammate for `MONGODB_USERNAME`, `MONGODB_PASSWORD`, and the full `MONGODB_URI`, then fill in `.env`. The application connects using the full `MONGODB_URI`.
@@ -37,7 +57,8 @@ Open `/login`. All demo accounts use the password you set in `DEMO_PASSWORD`:
 
 Reporters cannot access another reporter's article or publish/delete content. While an article is pending review, its reporter cannot edit it. These rules are enforced on the server for both pages and API requests. Browser-supplied roles, author IDs and publication fields are rejected.
 
-The workspace provides a basic article list and editing form. Save a draft, then submit it for review. The editor can save changes and approve or return a pending article. Editing published content keeps the last approved snapshot public until the next approval. Article saving is manual; automatic draft saving is not implemented yet.
+The workspace provides an article list and an editing form. Draft changes save automatically; submission
+for review is explicit. Editing published content keeps the approved snapshot public until approval.
 
 Passwords are stored as salted, one-way `scrypt` hashes using Node's built-in `crypto` module. Login creates a random session token in an HttpOnly, SameSite=Lax cookie; only its SHA-256 hash and expiry are stored in MongoDB. Sessions last seven days and survive a server restart without a server-side secret or in-memory session store. Each request loads the user's current role from MongoDB. Logout deletes the session. Production uses Secure cookies, so set `NODE_ENV=production` when serving over HTTPS.
 
@@ -121,7 +142,8 @@ To check an actual restart locally: sign in, stop `npm start`, start it again an
 
 The workspace shows all four workflow states and correction notes, lists only the signed-in reporter's articles, and supports draft creation, editing, submission, corrections/resubmission and editing a published article. The last approved snapshot stays public during draft edits and review. The server rejects another reporter's article, forged privileged fields, incomplete submissions and edits to pending articles.
 
-Lists fetch 20 article summaries at a time through `GET /api/staff/articles?page=1` and the load-more button; full article bodies are loaded only for editing. Existing drafts save through Ajax without reloading. Creation and submission remain explicit actions. Automatic draft saving belongs to issue #10 and is not implemented here.
+Lists fetch 20 article summaries at a time through `GET /api/staff/articles?page=1`; full bodies load
+only for editing. New and existing drafts save automatically through Ajax under issue #10.
 
 `npm test` covers ownership, all states, pagination, validation, corrections/resubmission, published snapshot preservation and Hebrew body size limits, with mocked MongoDB operations.
 
@@ -131,4 +153,5 @@ Lists fetch 20 article summaries at a time through `GET /api/staff/articles?page
 
 Editors can read and edit submitted content, approve complete pending articles, return them with a required correction note, and delete an article with its related comments and view data. Other state transitions and reporter attempts to use editor operations are rejected on the server. The editing page labels the submitted/working content and shows the current approved title, summary, body, category, image and version separately. The public article page continues to show the approved snapshot through editing, submission and return, and switches only after approval. Creation, submission, approval, returns and deletion produce operational logs.
 
-Tests cover every status filter, pagination, invalid transitions, empty-content approval, correction-note validation, the full published-update cycle through the public HTML route, and deletion. Database operations are mocked; a live MongoDB/browser demonstration is still needed before the defense. Autosave (#10), analytics (#13), user management CRUD and weather (#15) are separate tasks.
+Tests cover status filters, pagination, transitions, approval, corrections and the published-update
+cycle. Autosave (#10) is included on this branch; CRUD management and weather remain separate tasks.

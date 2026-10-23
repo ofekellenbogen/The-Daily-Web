@@ -138,4 +138,18 @@ async function deleteArticle(id, user) {
   ]);
 }
 
-module.exports = { STATUS_LABELS, listArticles, getArticle, createArticle, updateArticle, transitionArticle, deleteArticle };
+async function saveDraft(id, user, input) {
+  if (!isObjectId(id)) throw new HttpError(400, 'INVALID_ID', 'מזהה טיוטה לא תקין');
+  const existing = await Article.findById(id);
+  if (existing) return updateArticle(id, user, input);
+  if (user.role !== 'reporter') throw new HttpError(403, 'FORBIDDEN', 'יצירת טיוטה מותרת לכתב בלבד');
+  const content = parseContent(input);
+  try {
+    return await Article.create({ _id: id, authorId: user._id, workingCopy: content });
+  } catch (err) {
+    if (err.code !== 11000) throw err;
+    return updateArticle(id, user, input);
+  }
+}
+
+module.exports = { STATUS_LABELS, listArticles, getArticle, createArticle, updateArticle, transitionArticle, deleteArticle, saveDraft };

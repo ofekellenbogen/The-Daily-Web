@@ -56,4 +56,10 @@ async function remove(req, res) {
   res.status(204).end();
 }
 
-module.exports = { workspace, list, newArticle, editArticle, create, update, submit, approve, returnForCorrections, remove };
+async function autosave(req, res) {
+  const article = await service.saveDraft(req.params.id, req.user, req.body);
+  res.json({ id: String(article._id), workflowStatus: article.workflowStatus,
+    statusLabel: service.STATUS_LABELS[article.workflowStatus], revision: article.revision });
+}
+
+module.exports = { workspace, list, newArticle, editArticle, create, update, submit, approve, returnForCorrections, remove, autosave };
