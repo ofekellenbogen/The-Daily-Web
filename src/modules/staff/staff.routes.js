@@ -18,6 +18,7 @@ router.patch('/api/staff/articles/:id', controller.update);
 router.post('/api/staff/articles/:id/submit', reporter, controller.submit);
 router.post('/api/staff/articles/:id/approve', editor, controller.approve);
 router.post('/api/staff/articles/:id/return', editor, controller.returnForCorrections);
+router.get('/api/staff/articles/:id/published', require('./published.controller').get);
 router.delete('/api/staff/articles/:id', editor, controller.remove);
 
 module.exports = router;

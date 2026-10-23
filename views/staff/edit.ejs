@@ -32,12 +32,10 @@
         </select>
         <label for="article-image">כתובת תמונה</label>
         <input id="article-image" name="imageUrl" type="url" maxlength="2000" dir="ltr" value="<%= content.imageUrl || '' %>">
-        <% if (content.imageUrl) { %>
-          <figure class="article-image-preview">
-            <img src="<%= content.imageUrl %>" alt="תצוגה מקדימה של תמונת הכתבה" loading="lazy">
+          <figure class="article-image-preview" id="draft-image-preview" <%= content.imageUrl ? '' : 'hidden' %>>
+            <img <% if (content.imageUrl) { %>src="<%= content.imageUrl %>"<% } %> alt="תצוגה מקדימה של תמונת הכתבה" loading="lazy">
             <figcaption>תצוגה מקדימה של תמונת גרסת העבודה</figcaption>
           </figure>
-        <% } %>
         <button class="button" type="submit">שמירת כתבה</button>
       </fieldset>
     </form>
@@ -57,7 +55,7 @@
         <% } %>
       </section>
       <% if (currentUser.role === 'editor' && article.publishedVersion) { %>
-        <section class="staff-card approved-snapshot-card" aria-labelledby="published-title">
+        <section id="approved-snapshot" class="staff-card approved-snapshot-card" aria-labelledby="published-title">
           <h2 id="published-title">הגרסה המפורסמת כעת</h2>
           <p>גרסה <%= article.publishedVersion.version %> · קטגוריה: <%= categories[article.publishedVersion.category] %></p>
           <h3><%= article.publishedVersion.title %></h3>
@@ -75,6 +73,8 @@
     <a href="<%= currentUser.role === 'editor' ? '/editor' : '/reporter' %>">חזרה לאזור העבודה</a>
     <noscript><p>יש להפעיל JavaScript כדי לשמור ולנהל כתבות.</p></noscript>
   </main>
+  <p id="snapshot-status" class="container" role="status" aria-live="polite"></p>
+  <script src="/js/editor-view.js" data-initial-status="<%= article?.workflowStatus || 'draft' %>" data-role="<%= currentUser.role %>" defer></script>
   <%- include('../partials/layout/footer') %>
   <script src="/js/staff.js" defer></script>
 </body>
