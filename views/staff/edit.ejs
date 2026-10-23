@@ -9,40 +9,68 @@
   <% const content = article?.workingCopy || {}; %>
   <% const locked = currentUser.role === 'reporter' && article?.workflowStatus === 'pending'; %>
   <main class="container staff-page" id="article-editor" data-article-id="<%= article?._id || '' %>">
-    <h1><%= title %></h1>
-    <% if (article) { %><p id="article-state">מצב: <%= statusLabels[article.workflowStatus] %></p><% } %>
-    <% if (article?.editorNote) { %><p class="staff-card">הערת עורך: <%= article.editorNote %></p><% } %>
-    <% if (locked) { %><p>הכתבה ממתינה לאישור עורך ולא ניתן לערוך אותה כרגע.</p><% } %>
+    <div class="staff-page__heading">
+      <h1><%= title %></h1>
+      <a href="<%= currentUser.role === 'editor' ? '/editor' : '/reporter' %>">חזרה לאזור העבודה</a>
+    </div>
+
+    <% if (article) { %>
+      <p id="article-state">מצב: <span class="status-badge status-badge--<%= article.workflowStatus %>"><%= statusLabels[article.workflowStatus] %></span></p>
+    <% } %>
+
+    <% if (article?.editorNote) { %>
+      <div class="staff-callout staff-callout--returned" role="alert">
+        <strong>הערת עורך להחזרה לתיקונים:</strong>
+        <p><%= article.editorNote %></p>
+      </div>
+    <% } %>
+
+    <% if (locked) { %>
+      <div class="staff-callout staff-callout--pending">
+        <p>הכתבה ממתינה לאישור עורך ולא ניתן לערוך אותה כרגע.</p>
+      </div>
+    <% } %>
+
+    <% if (article?.publishedVersion) { %>
+      <div class="staff-callout staff-callout--published">
+        <p>כתבה זו מפורסמת כעת. עריכת הטופס מעדכנת את טיוטת העבודה בלבד ואינה משנה את הגרסה הציבורית עד לאישור העורך.</p>
+        <p><a href="/articles/<%= article._id %>" target="_blank" rel="noopener">לצפייה בגרסה המפורסמת ↗</a></p>
+      </div>
+    <% } %>
+
     <p id="staff-status" role="status" aria-live="polite"></p>
     <form id="article-form" class="staff-form">
       <fieldset <%= locked ? 'disabled' : '' %>>
         <legend><%= currentUser.role === 'editor' ? (article?.workflowStatus === 'pending' ? 'התוכן שהוגש לאישור' : 'גרסת העבודה') : 'תוכן הכתבה' %></legend>
-        <% if (article?.publishedVersion) { %><p>השינויים בגרסת העבודה יוצגו לציבור רק לאחר אישור עורך.</p><% } %>
         <label for="article-title">כותרת</label>
-        <input id="article-title" name="title" maxlength="200" value="<%= content.title || '' %>">
+        <input id="article-title" name="title" maxlength="200" value="<%= content.title || '' %>" required>
         <label for="article-summary">תקציר</label>
-        <textarea id="article-summary" name="summary" maxlength="1000" rows="3"><%= content.summary || '' %></textarea>
+        <textarea id="article-summary" name="summary" maxlength="1000" rows="3" required><%= content.summary || '' %></textarea>
         <label for="article-body">תוכן</label>
-        <textarea id="article-body" name="body" maxlength="50000" rows="14"><%= content.body || '' %></textarea>
+        <textarea id="article-body" name="body" maxlength="50000" rows="14" required><%= content.body || '' %></textarea>
         <label for="article-category">קטגוריה</label>
         <select id="article-category" name="category" required>
+          <option value="">בחירת קטגוריה</option>
           <% for (const [value, label] of Object.entries(categories)) { %>
             <option value="<%= value %>" <%= content.category === value ? 'selected' : '' %>><%= label %></option>
           <% } %>
         </select>
         <label for="article-image">כתובת תמונה</label>
         <input id="article-image" name="imageUrl" type="url" maxlength="2000" dir="ltr" value="<%= content.imageUrl || '' %>">
-        <button class="button" type="submit">שמירת כתבה</button>
+        <button class="button" type="submit">שמירת טיוטה</button>
       </fieldset>
     </form>
+
     <% if (article) { %>
       <section class="staff-actions" aria-label="פעולות בכתבה">
         <% if (currentUser.role === 'reporter' && ['draft', 'returned', 'published'].includes(article.workflowStatus)) { %>
-          <button class="button" type="button" data-action="submit">שמירה ושליחה לאישור עורך</button>
+          <button class="button button--primary" type="button" data-action="submit">
+            <%= article.workflowStatus === 'returned' ? 'שמירה והגשה מחדש לאישור עורך' : 'שמירה ושליחה לאישור עורך' %>
+          </button>
         <% } %>
         <% if (currentUser.role === 'editor') { %>
           <% if (article.workflowStatus === 'pending') { %>
-            <button class="button" type="button" data-action="approve">שמירה ואישור פרסום</button>
+            <button class="button button--primary" type="button" data-action="approve">שמירה ואישור פרסום</button>
             <label for="editor-note">הערה להחזרה לתיקונים</label>
             <textarea id="editor-note" maxlength="1000" rows="3"></textarea>
             <button class="button button--secondary" type="button" data-action="return">שמירה והחזרה לתיקונים</button>
@@ -64,7 +92,6 @@
         </section>
       <% } %>
     <% } %>
-    <a href="<%= currentUser.role === 'editor' ? '/editor' : '/reporter' %>">חזרה לאזור העבודה</a>
     <noscript><p>יש להפעיל JavaScript כדי לשמור ולנהל כתבות.</p></noscript>
   </main>
   <%- include('../partials/layout/footer') %>

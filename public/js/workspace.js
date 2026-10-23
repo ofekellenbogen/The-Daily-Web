@@ -7,16 +7,24 @@ let latestRequest = 0;
 function articleCard(article, statusLabels) {
   const item = document.createElement('li');
   const card = document.createElement('article');
-  card.className = 'staff-card';
+  card.className = `staff-card staff-card--${article.workflowStatus}`;
   const heading = document.createElement('h2');
   const link = document.createElement('a');
   link.href = `/staff/articles/${article._id}`;
-  link.textContent = article.workingCopy.title || 'ללא כותרת';
+  link.textContent = article.workingCopy?.title || 'ללא כותרת';
   heading.append(link);
   card.append(heading);
+
+  const isEditor = list?.dataset?.userRole === 'editor' ||
+    (typeof window !== 'undefined' && window.location?.pathname?.startsWith('/editor'));
+
   const details = [`מצב: ${statusLabels[article.workflowStatus]}`];
-  if (filter) details.push(`כתב: ${article.authorId?.displayName || 'משתמש לא זמין'}`);
-  if (article.editorNote) details.push(`הערת עורך: ${article.editorNote}`);
+  if (isEditor) {
+    details.push(`כתב: ${article.authorId?.displayName || 'משתמש לא זמין'}`);
+  }
+  if (article.editorNote) {
+    details.push(`הערת עורך: ${article.editorNote}`);
+  }
   for (const text of details) {
     const paragraph = document.createElement('p');
     paragraph.textContent = text;
@@ -29,7 +37,9 @@ function articleCard(article, statusLabels) {
 async function loadArticles(append) {
   const requestId = ++latestRequest;
   const params = new URLSearchParams({ page: append ? more.dataset.nextPage : '1' });
-  if (filter) params.set('status', filter.elements.status.value);
+  if (filter?.elements?.status?.value) {
+    params.set('status', filter.elements.status.value);
+  }
   more.disabled = true;
   message.classList.remove('form-error');
   message.textContent = 'טוען כתבות...';
@@ -59,4 +69,4 @@ filter?.addEventListener('submit', (event) => {
   event.preventDefault();
   loadArticles(false);
 });
-filter?.elements.status.addEventListener('change', () => loadArticles(false));
+filter?.elements?.status?.addEventListener('change', () => loadArticles(false));
