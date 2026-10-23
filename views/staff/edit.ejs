@@ -13,7 +13,7 @@
     <% if (article) { %><p id="article-state">מצב: <%= statusLabels[article.workflowStatus] %></p><% } %>
     <% if (article?.editorNote) { %><p class="staff-card">הערת עורך: <%= article.editorNote %></p><% } %>
     <% if (locked) { %><p>הכתבה ממתינה לאישור עורך ולא ניתן לערוך אותה כרגע.</p><% } %>
-    <p id="staff-status" role="status" aria-live="polite"></p>
+    <p id="staff-status" class="save-feedback" role="status" aria-live="polite" aria-atomic="true"></p>
     <form id="article-form" class="staff-form">
       <fieldset <%= locked ? 'disabled' : '' %>>
         <legend><%= currentUser.role === 'editor' ? (article?.workflowStatus === 'pending' ? 'התוכן שהוגש לאישור' : 'גרסת העבודה') : 'תוכן הכתבה' %></legend>
@@ -68,6 +68,7 @@
     <noscript><p>יש להפעיל JavaScript כדי לשמור ולנהל כתבות.</p></noscript>
   </main>
   <%- include('../partials/layout/footer') %>
-  <script src="/js/staff.js" defer></script>
+  <span id="draft-context" hidden data-user-id="<%= currentUser._id %>" data-role="<%= currentUser.role %>" data-workflow-status="<%= article?.workflowStatus || 'draft' %>"></span>
+  <script src="/js/autosave.js" defer></script>
 </body>
 </html>
