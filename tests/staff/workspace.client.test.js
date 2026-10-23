@@ -74,7 +74,9 @@ test('a slower old filter response cannot overwrite the latest selection', async
   responses[0](result('outdated'));
   await first;
   const card = page.list.children[0].children[0];
-  assert.equal(card.children[0].children[0].textContent, 'latest');
+  const heading = card.children.find((child) => child.children?.[0]?.textContent === 'latest');
+  assert.ok(heading);
+  assert.equal(heading.children[0].textContent, 'latest');
   assert.equal(page.urls.at(-1), '/editor?status=published');
 });
 
