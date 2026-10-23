@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 // Exercise the real client script with only the DOM methods it needs.
-function setup(fetch) {
+function setup(fetch, pathname = '/editor') {
   function element() {
     return {
       children: [], dataset: {}, listeners: {},
@@ -28,7 +28,7 @@ function setup(fetch) {
     document: { getElementById: (id) => elements[id], createElement: element },
     fetch, URLSearchParams,
     window: {
-      location: { pathname: '/editor' },
+      location: { pathname },
       history: { replaceState: (state, title, url) => urls.push(url) }
     }
   });
@@ -88,3 +88,44 @@ test('a failed filter preserves the list and displays the server error', async (
   assert.equal(page.message.textContent, 'יש להתחבר');
   assert.equal(page.more.disabled, false);
 });
+
+test('reporter workspace filters by status and does not render author label', async () => {
+  const requests = [];
+  const page = setup(async (url) => {
+    requests.push(url);
+    return {
+      ok: true,
+      json: async () => ({
+        articles: [
+          { _id: 'art-1', workingCopy: { title: 'טיוטה ראשונה' }, workflowStatus: 'draft', editorNote: '' },
+          { _id: 'art-2', workingCopy: { title: 'הוחזרה' }, workflowStatus: 'returned', editorNote: 'נא לתקן כותרת' }
+        ],
+        nextPage: null,
+        statusLabels: { draft: 'בהכנה', returned: 'הוחזרה לתיקונים' }
+      })
+    };
+  }, '/reporter');
+
+  page.filter.elements.status.value = 'returned';
+  await page.filter.elements.status.listeners.change();
+
+  assert.equal(requests[0], '/api/staff/articles?page=1&status=returned');
+  assert.equal(page.urls[0], '/reporter?status=returned');
+  assert.equal(page.list.children.length, 2);
+
+  const card1 = page.list.children[0].children[0];
+  const heading1 = card1.children.find((c) => c.children?.[0]?.textContent === 'טיוטה ראשונה');
+  assert.ok(heading1);
+  assert.equal(heading1.children[0].textContent, 'טיוטה ראשונה');
+  assert.ok(card1.children.some((c) => c.textContent === 'מצב: בהכנה'));
+  // In reporter view, no "כתב: ..." paragraph should be present
+  assert.equal(card1.children.some((c) => c.textContent?.startsWith('כתב:')), false);
+
+  const card2 = page.list.children[1].children[0];
+  const heading2 = card2.children.find((c) => c.children?.[0]?.textContent === 'הוחזרה');
+  assert.ok(heading2);
+  assert.equal(heading2.children[0].textContent, 'הוחזרה');
+  assert.ok(card2.children.some((c) => c.textContent === 'מצב: הוחזרה לתיקונים'));
+  assert.ok(card2.children.some((c) => c.textContent === 'הערת עורך: נא לתקן כותרת'));
+});
+

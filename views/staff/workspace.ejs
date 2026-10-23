@@ -7,32 +7,44 @@
 <body>
   <%- include('../partials/layout/header') %>
   <main class="container staff-page">
-    <h1><%= title %></h1>
-    <% if (currentUser.role === 'editor') { %>
-      <form class="staff-filter" id="workspace-filter" method="get">
-        <label for="workspace-status-filter">סינון לפי מצב</label>
-        <select id="workspace-status-filter" name="status">
-          <option value="">כל המצבים</option>
-          <% for (const [value, label] of Object.entries(statusLabels)) { %>
-            <option value="<%= value %>" <%= selectedStatus === value ? 'selected' : '' %>><%= label %></option>
-          <% } %>
-        </select>
-        <button class="button" type="submit">סינון</button>
-      </form>
-    <% } %>
-    <% if (currentUser.role === 'reporter') { %>
-      <a class="button" href="/staff/articles/new">יצירת כתבה חדשה</a>
-    <% } %>
+    <div class="staff-page__heading">
+      <h1><%= title %></h1>
+      <% if (currentUser.role === 'reporter') { %>
+        <a class="button button--primary" href="/staff/articles/new">יצירת כתבה חדשה</a>
+      <% } %>
+    </div>
+
+    <form class="staff-filter" id="workspace-filter" method="get">
+      <label for="workspace-status-filter">סינון לפי מצב</label>
+      <select id="workspace-status-filter" name="status">
+        <option value="">כל המצבים</option>
+        <% for (const [value, label] of Object.entries(statusLabels)) { %>
+          <option value="<%= value %>" <%= selectedStatus === value ? 'selected' : '' %>><%= label %></option>
+        <% } %>
+      </select>
+      <button class="button" type="submit">סינון</button>
+    </form>
+
     <p id="workspace-status" role="status" aria-live="polite"><%= articles.length ? '' : 'אין עדיין כתבות להצגה.' %></p>
-    <ul class="article-list" id="workspace-articles" aria-label="כתבות לניהול">
+    <ul class="article-list" id="workspace-articles" data-user-role="<%= currentUser.role %>" aria-label="כתבות לניהול">
       <% for (const article of articles) { %>
         <li>
-          <article class="staff-card workspace-card" data-workflow-status="<%= article.workflowStatus %>">
+          <article class="staff-card workspace-card staff-card--<%= article.workflowStatus %>" data-workflow-status="<%= article.workflowStatus %>">
             <% if (article.imageUrl) { %><img class="workspace-card__image" src="<%= article.imageUrl %>" alt="" loading="lazy"><% } else { %><div class="workspace-card__image workspace-card__image--empty" aria-hidden="true">The Daily Web</div><% } %>
             <h2><a href="/staff/articles/<%= article._id %>"><%= article.workingCopy.title || 'ללא כותרת' %></a></h2>
-            <p>מצב: <%= statusLabels[article.workflowStatus] %></p>
-            <% if (currentUser.role === 'editor') { %><p>כתב: <%= article.authorId?.displayName || 'משתמש לא זמין' %></p><% } %>
-            <% if (article.editorNote) { %><p>הערת עורך: <%= article.editorNote %></p><% } %>
+            <p class="staff-card__status">מצב: <span class="status-badge status-badge--<%= article.workflowStatus %>"><%= statusLabels[article.workflowStatus] %></span></p>
+            <% if (currentUser.role === 'editor') { %><p class="staff-card__author">כתב: <%= article.authorId?.displayName || 'משתמש לא זמין' %></p><% } %>
+            <% if (article.editorNote) { %>
+              <div class="editor-note-box">
+                <strong>הערת עורך לתיקונים:</strong>
+                <p><%= article.editorNote %></p>
+              </div>
+            <% } %>
+            <% if (article.workflowStatus === 'published') { %>
+              <p class="staff-card__public-link">
+                <a href="/articles/<%= article._id %>" target="_blank" rel="noopener">צפייה בכתבה המפורסמת ↗</a>
+              </p>
+            <% } %>
           </article>
         </li>
       <% } %>
