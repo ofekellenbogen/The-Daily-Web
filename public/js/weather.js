@@ -9,8 +9,8 @@
 //      answers with the reader's town name.
 //   3. The items are added twice to the track; CSS moves the track so the loop never shows a gap
 //      (see .weather-ticker__track in public.css).
-//   4. The "refresh" button asks the server for fresh data (&refresh=true),
-//      limited to one click every 3 seconds.
+//   4. Reloads the weather by itself every 5 minutes, so a page left open never shows old data
+//      (5 minutes here + at most 10 minutes in the server cache = never older than 15 minutes).
 //   5. On failure an error message with a "retry" button replaces the moving items.
 (function () {
   'use strict';
@@ -22,18 +22,16 @@
   const errorEl = byId('weather-error');
   const errorMsgEl = byId('weather-error-msg');
   const trackEl = byId('weather-track');
-  const refreshBtn = byId('weather-refresh');
   const retryBtn = byId('weather-retry');
 
   // If the ticker is not on the page, do nothing
   if (!loadingEl || !detailsEl || !errorEl || !trackEl) return;
 
-  const REFRESH_THROTTLE_MS = 3000;
+  const AUTO_REFRESH_MS = 5 * 60 * 1000;
   // Reuse a location the browser found in the last 30 minutes; give up after 10 seconds.
   const GEOLOCATION_OPTIONS = { maximumAge: 30 * 60 * 1000, timeout: 10000 };
 
   let requestId = 0; // increases on every request; answers to older requests are ignored
-  let lastRefreshClick = 0; // time (ms) of the last accepted refresh click
   let readerCoords = null; // { lat, lon } once the reader allows location access
 
   // ===== Formatting helpers ========================================================
@@ -124,7 +122,6 @@
     loadingEl.hidden = false;
     detailsEl.hidden = true;
     errorEl.hidden = true;
-    if (refreshBtn) refreshBtn.disabled = true;
   }
 
   function showDetails(weather) {
@@ -137,7 +134,6 @@
     loadingEl.hidden = true;
     detailsEl.hidden = false;
     errorEl.hidden = true;
-    if (refreshBtn) refreshBtn.disabled = false;
   }
 
   function showError(message) {
@@ -145,31 +141,24 @@
     loadingEl.hidden = true;
     detailsEl.hidden = true;
     errorEl.hidden = false;
-    if (refreshBtn) refreshBtn.disabled = false;
   }
 
   // ===== Loading the weather =======================================================
-  // /api/weather, plus ?lat=&lon= when the reader shared their location, plus ?refresh=true.
-  function weatherUrl(forceRefresh) {
-    const params = new URLSearchParams();
-    if (readerCoords) {
-      params.set('lat', readerCoords.lat);
-      params.set('lon', readerCoords.lon);
-    }
-    if (forceRefresh) params.set('refresh', 'true');
-    const query = params.toString();
-    return query ? `/api/weather?${query}` : '/api/weather';
+  // /api/weather, plus ?lat=&lon= when the reader shared their location.
+  function weatherUrl() {
+    if (!readerCoords) return '/api/weather';
+    const params = new URLSearchParams({ lat: readerCoords.lat, lon: readerCoords.lon });
+    return `/api/weather?${params}`;
   }
 
-  async function loadWeather(forceRefresh = false) {
+  async function loadWeather() {
     const currentRequest = ++requestId;
     // Show "loading" only when there is nothing on screen yet; otherwise keep the
     // current ticker moving until the new data arrives.
     if (detailsEl.hidden) showLoading();
-    if (refreshBtn) refreshBtn.disabled = true;
 
     try {
-      const response = await fetch(weatherUrl(forceRefresh), {
+      const response = await fetch(weatherUrl(), {
         headers: { Accept: 'application/json' }
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -186,7 +175,6 @@
       console.warn('[weather] client error fetching weather:', err.message);
       // Keep showing the previous weather if there is some; show the error only when there is none.
       if (detailsEl.hidden) showError('שירות מזג האוויר אינו זמין כעת. נסו שוב מאוחר יותר.');
-      else if (refreshBtn) refreshBtn.disabled = false;
     }
   }
 
@@ -202,27 +190,19 @@
           lat: position.coords.latitude.toFixed(2),
           lon: position.coords.longitude.toFixed(2)
         };
-        loadWeather(false);
+        loadWeather();
       },
       () => { /* permission denied or no location: keep the default location */ },
       GEOLOCATION_OPTIONS
     );
   }
 
-  // ===== Buttons ===================================================================
-  if (refreshBtn) {
-    refreshBtn.addEventListener('click', () => {
-      const now = Date.now();
-      // Throttle refresh clicks (3 seconds)
-      if (now - lastRefreshClick < REFRESH_THROTTLE_MS) return;
-      lastRefreshClick = now;
-      loadWeather(true);
-    });
-  }
-
-  if (retryBtn) retryBtn.addEventListener('click', () => loadWeather(false));
+  // ===== Start =====================================================================
+  if (retryBtn) retryBtn.addEventListener('click', () => loadWeather());
 
   // Show weather immediately (default location), then switch to the reader's own area if allowed.
-  loadWeather(false);
+  loadWeather();
   useReaderLocation();
+  // Keep the ticker up to date while the page stays open.
+  setInterval(loadWeather, AUTO_REFRESH_MS);
 })();

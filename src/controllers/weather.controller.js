@@ -3,18 +3,17 @@ const weatherService = require('../services/weather.service');
 const locationService = require('../services/location.service');
 const logger = require('../utils/logger');
 
-// GET /api/weather?lat=32.1&lon=34.8&refresh=true   (all parameters optional)
+// GET /api/weather?lat=32.1&lon=34.8   (lat/lon optional)
 async function getWeather(req, res) {
   // Invalid lat/lon -> 400 through the central error handler.
   const readerLocation = locationService.parseBrowserLocation(req.query.lat, req.query.lon);
   try {
-    const forceRefresh = req.query.refresh === 'true';
     // The reader's location (with their town name) if the browser sent it,
     // otherwise the default location (Tel Aviv).
     const coords = readerLocation
       ? await locationService.describeReaderLocation(readerLocation)
       : weatherService.DEFAULT_COORDS;
-    const weather = await weatherService.getWeather({ forceRefresh, coords });
+    const weather = await weatherService.getWeather({ coords });
     res.set('Cache-Control', 'public, max-age=60'); // browsers may reuse the answer for a minute
     // The forecast is shared by a ~10 km area; the name is always this reader's own town.
     return res.json({ success: true, weather: { ...weather, city: coords.cityName } });
