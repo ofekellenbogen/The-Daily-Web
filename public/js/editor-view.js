@@ -3,23 +3,28 @@
   const config = document.currentScript.dataset;
   const editor = document.getElementById('article-editor');
   const input = document.getElementById('article-image');
+  const altInput = document.getElementById('article-image-alt');
   const preview = document.getElementById('draft-image-preview');
   const image = preview.querySelector('img');
   const caption = preview.querySelector('figcaption');
   const feedback = document.getElementById('snapshot-status');
   function imageUrl(value) {
+    if (/^\/article-images\/[0-9a-f]{24}\.svg$/i.test(value)) return value;
     try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; }
     catch { return ''; }
   }
   function updatePreview() {
     const url = imageUrl(input.value.trim());
     preview.hidden = !url; image.hidden = false;
+    image.alt = altInput.value.trim() || 'תצוגה מקדימה של תמונת הכתבה';
     caption.textContent = 'תצוגה מקדימה של תמונת גרסת העבודה';
     if (!url) image.removeAttribute('src');
     else if (image.getAttribute('src') !== url) image.src = url;
   }
   input.addEventListener('input', updatePreview);
   input.addEventListener('change', updatePreview);
+  altInput.addEventListener('input', updatePreview);
+  altInput.addEventListener('change', updatePreview);
   image.addEventListener('error', () => {
     image.hidden = true; caption.textContent = 'לא ניתן לטעון את התמונה. בדקו את הכתובת.';
   });
@@ -47,7 +52,10 @@
     const url = imageUrl(snapshot.imageUrl);
     if (url) {
       const picture = element('img', undefined, 'published-image');
-      picture.src = url; picture.alt = snapshot.title; nodes.push(picture);
+      picture.src = url; picture.alt = snapshot.imageAlt || snapshot.title; nodes.push(picture);
+      if (snapshot.imageCredit || snapshot.imageLicense) {
+        nodes.push(element('p', `קרדיט: ${snapshot.imageCredit || ''} · ${snapshot.imageLicense || ''}`, 'published-body'));
+      }
     }
     const body = element('div', undefined, 'approved-snapshot-card__body');
     body.append(element('p', snapshot.body, 'published-body')); nodes.push(body);

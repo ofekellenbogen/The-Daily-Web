@@ -1,12 +1,44 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
+const Article = require('../../src/models/Article');
 const {
+  getFeed,
   parseFeedQuery,
   escapeRegex,
   encodeDateCursor,
   decodeDateCursor
 } = require('../../src/modules/public/feed.service');
+const { FALLBACK_IMAGE_URL } = require('../../src/modules/public/article-media');
+
+test('public feed cards include accessible media and a fallback for legacy articles', async (t) => {
+  const docs = [{
+    _id: new mongoose.Types.ObjectId(),
+    authorId: { displayName: 'Reporter' },
+    publishedVersion: {
+      title: 'Legacy article', summary: 'Summary', category: 'tech', imageUrl: '', imageAlt: '',
+      publishedAt: new Date('2026-10-24T10:00:00.000Z')
+    }
+  }];
+  const query = {
+    select() { return this; },
+    populate() { return this; },
+    lean() { return this; },
+    sort() { return this; },
+    limit() { return this; },
+    then(resolve, reject) { return Promise.resolve(docs).then(resolve, reject); }
+  };
+  t.mock.method(Article, 'find', (filter) => {
+    assert.deepEqual(filter, { 'publishedVersion.publishedAt': { $ne: null } });
+    return query;
+  });
+
+  const result = await getFeed({}, 'device-id');
+
+  assert.equal(result.data.length, 1);
+  assert.equal(result.data[0].imageUrl, FALLBACK_IMAGE_URL);
+  assert.equal(result.data[0].imageAlt, '');
+});
 
 test('parseFeedQuery applies defaults', () => {
   assert.deepEqual(parseFeedQuery({}), {

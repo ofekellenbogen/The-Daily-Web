@@ -22,7 +22,12 @@ function contentFields() {
     summary: { type: String, trim: true, default: '' },
     body: { type: String, default: '' },
     category: { type: String, enum: Object.keys(CATEGORIES) },
-    imageUrl: { type: String, trim: true, default: '' }
+    imageUrl: { type: String, trim: true, default: '' },
+    imageAlt: { type: String, trim: true, maxlength: 250, default: '' },
+    imageCredit: { type: String, trim: true, maxlength: 250, default: '' },
+    imageSourceUrl: { type: String, trim: true, default: '' },
+    imageLicense: { type: String, trim: true, maxlength: 100, default: '' },
+    imageLicenseUrl: { type: String, trim: true, default: '' }
   };
 }
 

@@ -12,7 +12,10 @@ function setup(fetch, storage = new Map(), fresh = false) {
   const badge = {}, status = { classList: { toggle() {} } };
   const editor = { dataset: { articleId: fresh ? '' : '123456789012345678901234', userId: 'writer', role: 'reporter', workflowStatus: 'draft' },
     querySelector: () => ({}), querySelectorAll: () => [] };
-  let content = { title: 'First', summary: '', body: '', category: 'tech', imageUrl: '' };
+  let content = {
+    title: 'First', summary: '', body: '', category: 'tech', imageUrl: '', imageAlt: '',
+    imageCredit: '', imageSourceUrl: '', imageLicense: '', imageLicenseUrl: ''
+  };
   const elements = { 'article-editor': editor, 'article-form': form, 'staff-status': status, 'article-state': badge };
   vm.runInNewContext(script, {
     document: { getElementById: id => elements[id] }, fetch, crypto: require('node:crypto').webcrypto,

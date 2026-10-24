@@ -30,7 +30,7 @@
       <% for (const article of articles) { %>
         <li>
           <article class="staff-card workspace-card" data-workflow-status="<%= article.workflowStatus %>">
-            <% if (article.imageUrl) { %><img class="workspace-card__image" src="<%= article.imageUrl %>" alt="" loading="lazy"><% } else { %><div class="workspace-card__image workspace-card__image--empty" aria-hidden="true">The Daily Web</div><% } %>
+            <% if (article.imageUrl) { %><img class="workspace-card__image" src="<%= article.imageUrl %>" alt="<%= article.imageAlt || article.workingCopy.title %>" loading="lazy"><% } else { %><div class="workspace-card__image workspace-card__image--empty" aria-hidden="true">The Daily Web</div><% } %>
             <h2><a href="/staff/articles/<%= article._id %>"><%= article.workingCopy.title || 'ללא כותרת' %></a></h2>
             <p>מצב: <%= statusLabels[article.workflowStatus] %></p>
             <% if (currentUser.role === 'editor') { %><p>כתב: <%= article.authorId?.displayName || 'משתמש לא זמין' %></p><% } %>

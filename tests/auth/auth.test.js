@@ -17,7 +17,11 @@ const users = [];
 const sessions = new Map();
 const articles = new Map();
 const password = 'test-password-123';
-const content = { title: 'Test article', summary: 'Summary', body: 'Article body', category: 'tech', imageUrl: '' };
+const content = {
+  title: 'Test article', summary: 'Summary', body: 'Article body', category: 'tech',
+  imageUrl: 'https://example.com/test.jpg', imageAlt: 'Technology illustration',
+  imageCredit: '', imageSourceUrl: '', imageLicense: '', imageLicenseUrl: ''
+};
 let server;
 let baseUrl;
 
@@ -280,6 +284,18 @@ test('guests can read public pages but cannot access staff pages or any staff mu
   }
 });
 
+test('guests can load the generated article illustration endpoint', async () => {
+  const article = storeArticle({ authorId: users[0]._id, workingCopy: content,
+    publishedVersion: { ...content, version: 1, publishedAt: new Date() } });
+  const response = await request(`/article-images/${article._id}.svg`);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /image\/svg\+xml/);
+  assert.match(response.headers.get('cache-control'), /immutable/);
+  const svg = await response.text();
+  assert.match(svg, /Test article/);
+  assert.match(svg, /Summary/);
+});
+
 test('reporters create owned drafts and cannot forge authors, roles or publication fields', async () => {
   const cookie = await login();
   const created = await request('/api/staff/articles', { method: 'POST', cookie, body: content });
@@ -360,6 +376,9 @@ test('invalid IDs, content and cross-origin requests return errors and leave the
   for (const body of [{}, { ...content, category: 'invalid' }, { ...content, imageUrl: 'javascript:alert(1)' }, { ...content, title: { $gt: '' } }]) {
     assert.equal((await request(`/api/staff/articles/${article._id}`, { method: 'PATCH', cookie, body })).status, 400);
   }
+  assert.equal((await request(`/api/staff/articles/${article._id}`, {
+    method: 'PATCH', cookie, body: { ...content, imageUrl: `/article-images/${article._id}.svg` }
+  })).status, 200);
   for (const path of ['/login', '/logout', `/api/staff/articles/${article._id}/submit`]) {
     assert.equal((await request(path, { method: 'POST', cookie, body: { username: 'reporter', password }, headers: { Origin: 'https://other.example' } })).status, 403);
   }
@@ -523,6 +542,20 @@ test('editor publication requires complete pending content and valid state trans
   assert.equal(article.publicationHistory.length, 1);
   assert.equal((await request(`${path}/approve`, { method: 'POST', cookie })).status, 409);
   assert.equal(article.publicationHistory.length, 1);
+});
+
+test('article publication requires a featured image and its accessible description', async () => {
+  const cookie = await login('editor');
+  for (const [field, value] of [['imageUrl', ''], ['imageAlt', '  ']]) {
+    const article = storeArticle({
+      authorId: users[0]._id,
+      workingCopy: { ...content, [field]: value },
+      workflowStatus: 'pending'
+    });
+    assert.equal((await request(`/api/staff/articles/${article._id}/approve`, { method: 'POST', cookie })).status, 400);
+    assert.equal(article.publishedVersion, null);
+    assert.equal(article.workflowStatus, 'pending');
+  }
 });
 
 test('editor sees published and submitted versions while the public sees only approved content', async () => {

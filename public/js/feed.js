@@ -54,7 +54,7 @@
     if (article.imageUrl) {
       const image = createElement('img', 'card__image');
       image.src = article.imageUrl;
-      image.alt = '';
+      image.alt = article.imageAlt || '';
       image.loading = 'lazy';
       image.width = 640;
       image.height = 360;

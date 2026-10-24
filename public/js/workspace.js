@@ -14,7 +14,7 @@ function articleCard(article, statusLabels) {
     const image = document.createElement('img');
     image.className = 'workspace-card__image';
     image.src = imageUrl;
-    image.alt = '';
+    image.alt = article.imageAlt || '';
     image.loading = 'lazy';
     card.append(image);
   } else {

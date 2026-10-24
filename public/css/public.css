@@ -277,6 +277,17 @@
   background: var(--color-border);
 }
 
+.article__image-credit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 8px 16px;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+}
+
+.article__image-credit a { color: var(--color-primary); }
+
 .article__body {
   padding: 12px 28px 28px;
   font-size: 1.1rem;

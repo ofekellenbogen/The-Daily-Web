@@ -83,7 +83,7 @@
     button.dataset.action = 'submit'; button.textContent = 'שליחה לאישור עורך'; form.after(button);
   }
   if (backup?.content && !fieldset.disabled) {
-    for (const name of ['title', 'summary', 'body', 'category', 'imageUrl']) {
+    for (const name of ['title', 'summary', 'body', 'category', 'imageUrl', 'imageAlt', 'imageCredit', 'imageSourceUrl', 'imageLicense', 'imageLicenseUrl']) {
       if (typeof backup.content[name] === 'string') form.elements[name].value = backup.content[name];
     }
     queue();

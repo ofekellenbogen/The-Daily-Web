@@ -1,13 +1,127 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
-const { splitParagraphs } = require('../../src/modules/public/article.service');
+const Article = require('../../src/models/Article');
+const articleService = require('../../src/modules/public/article.service');
+const commentsService = require('../../src/modules/comments/comments.service');
+const viewsAdapter = require('../../src/modules/public/views.adapter');
+const articleController = require('../../src/modules/public/article.controller');
+const { splitParagraphs } = articleService;
+const { FALLBACK_IMAGE_URL, getArticleMedia, renderArticleIllustration } = require('../../src/modules/public/article-media');
 const { getBucket } = require('../../src/modules/analytics/views.service');
 const {
   parseCommentInput,
   encodeCursor,
   decodeCursor
 } = require('../../src/modules/comments/comments.service');
+
+test('article media supplies a local fallback and preserves accessible alt text', () => {
+  assert.deepEqual(getArticleMedia({ title: 'News', imageUrl: '', imageAlt: '' }), {
+    imageUrl: FALLBACK_IMAGE_URL,
+    imageAlt: '',
+    imageCredit: '',
+    imageSourceUrl: '',
+    imageLicense: '',
+    imageLicenseUrl: ''
+  });
+  assert.deepEqual(getArticleMedia({ title: 'News', imageUrl: 'https://example.com/news.jpg', imageAlt: 'A city hall' }), {
+    imageUrl: 'https://example.com/news.jpg',
+    imageAlt: 'A city hall',
+    imageCredit: '',
+    imageSourceUrl: '',
+    imageLicense: '',
+    imageLicenseUrl: ''
+  });
+  assert.deepEqual(getArticleMedia({ title: 'News', imageUrl: 'https://example.com/news.jpg' }), {
+    imageUrl: 'https://example.com/news.jpg',
+    imageAlt: 'News',
+    imageCredit: '',
+    imageSourceUrl: '',
+    imageLicense: '',
+    imageLicenseUrl: ''
+  });
+});
+
+test('article illustration includes story context and escapes XML input', () => {
+  const svg = renderArticleIllustration({
+    category: 'tech', categoryLabel: 'טכנולוגיה',
+    title: '<מחקר> & פיתוח', summary: 'תיאור "בדיקה" עם & סימנים'
+  });
+  assert.match(svg, /&lt;מחקר&gt; &amp; פיתוח/);
+  assert.match(svg, /תיאור &quot;בדיקה&quot; עם &amp; סימנים/);
+  assert.doesNotMatch(svg, /<מחקר>/);
+});
+
+test('generated article-image endpoint sends SVG with immutable cache headers', async (t) => {
+  const article = {
+    category: 'tech', categoryLabel: 'טכנולוגיה', title: 'כותרת', summary: 'תקציר'
+  };
+  let contentType, cacheControl, image;
+  t.mock.method(articleService, 'getPublicArticle', async (id) => {
+    assert.equal(id, 'article-id');
+    return article;
+  });
+  const response = {
+    type(value) { contentType = value; return this; },
+    set(name, value) { if (name === 'Cache-Control') cacheControl = value; return this; },
+    send(value) { image = value; return this; }
+  };
+
+  await articleController.renderArticleImage({ params: { id: 'article-id' } }, response);
+
+  assert.equal(contentType, 'image/svg+xml');
+  assert.equal(cacheControl, 'public, max-age=31536000, immutable');
+  assert.match(image, /<svg/);
+  assert.match(image, /כותרת/);
+});
+
+test('public article service supplies the fallback for legacy articles without an image', async (t) => {
+  const id = new mongoose.Types.ObjectId();
+  t.mock.method(Article, 'findOne', (filter) => {
+    assert.deepEqual(filter, { _id: id.toString(), 'publishedVersion.publishedAt': { $ne: null } });
+    const query = {
+      select() { return this; },
+      populate() { return this; },
+      async lean() {
+        return {
+          _id: id,
+          authorId: { displayName: 'Reporter' },
+          publishedVersion: { title: 'Older article', summary: '', body: 'Body', category: 'tech', imageUrl: '', imageAlt: '' },
+          publicationHistory: []
+        };
+      }
+    };
+    return query;
+  });
+
+  const article = await articleService.getPublicArticle(String(id));
+  assert.equal(article.imageUrl, FALLBACK_IMAGE_URL);
+  assert.equal(article.imageAlt, '');
+});
+
+test('each public article render records a visit without blocking on tracking failure', async (t) => {
+  const article = { id: 'article-id', title: 'A published story' };
+  const comments = { data: [], meta: { nextCursor: null, hasMore: false } };
+  let visits = 0;
+  const rendered = [];
+  t.mock.method(articleService, 'getPublicArticle', async () => article);
+  t.mock.method(commentsService, 'listComments', async () => comments);
+  t.mock.method(commentsService, 'countComments', async () => 0);
+  t.mock.method(viewsAdapter, 'recordVisit', async () => {
+    visits++;
+    if (visits === 2) throw new Error('database unavailable');
+  });
+  t.mock.method(console, 'error', () => {});
+
+  const request = { params: { id: article.id }, deviceId: 'browser-id' };
+  const response = { render: (view, locals) => rendered.push({ view, locals }) };
+  await articleController.renderArticle(request, response);
+  await articleController.renderArticle(request, response);
+
+  assert.equal(visits, 2);
+  assert.equal(rendered.length, 2);
+  assert.ok(rendered.every(({ view }) => view === 'public/article'));
+});
 
 test('splitParagraphs splits on blank lines and drops empty ones', () => {
   assert.deepEqual(splitParagraphs('first\n\nsecond\n  \nthird\n\n\n'), ['first', 'second', 'third']);
