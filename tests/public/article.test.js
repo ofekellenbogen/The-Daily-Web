@@ -4,18 +4,18 @@ const mongoose = require('mongoose');
 const ejs = require('ejs');
 const path = require('node:path');
 const Article = require('../../src/models/Article');
-const articleService = require('../../src/modules/public/article.service');
-const commentsService = require('../../src/modules/comments/comments.service');
-const viewsAdapter = require('../../src/modules/public/views.adapter');
-const articleController = require('../../src/modules/public/article.controller');
+const articleService = require('../../src/services/article.service');
+const commentsService = require('../../src/services/comment.service');
+const viewsAdapter = require('../../src/services/viewTracking.service');
+const articleController = require('../../src/controllers/article.controller');
 const { splitParagraphs } = articleService;
-const { FALLBACK_IMAGE_URL, getArticleMedia, renderArticleIllustration } = require('../../src/modules/public/article-media');
-const { getBucket } = require('../../src/modules/analytics/views.service');
+const { FALLBACK_IMAGE_URL, getArticleMedia, renderArticleIllustration } = require('../../src/services/articleImage.service');
+const { getBucket } = require('../../src/services/viewTracking.service');
 const {
   parseCommentInput,
   encodeCursor,
   decodeCursor
-} = require('../../src/modules/comments/comments.service');
+} = require('../../src/services/comment.service');
 
 test('inline comment moderation is rendered only for editors and uses public comment IDs', async () => {
   for (const currentUser of [null, { role: 'reporter' }, { role: 'editor' }]) {

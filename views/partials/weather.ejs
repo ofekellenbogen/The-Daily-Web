@@ -1,0 +1,32 @@
+<%# Weather ticker partial, included at the top of public/home.ejs (between the site header and
+    the "החדשות האחרונות" heading). Receives no variables.
+    The markup is an empty shell; /js/weather.js fetches GET /api/weather and fills #weather-track
+    with the weather items. The CSS animation (.weather-ticker__track in public.css) moves them. %>
+<section class="weather-ticker" id="weather-widget" aria-labelledby="weather-ticker-label">
+  <%# Fixed label on the right side of the strip. %>
+  <h2 class="weather-ticker__label" id="weather-ticker-label">
+    <span aria-hidden="true">🌤️</span>
+    <span>מזג אוויר</span>
+    <span class="weather-ticker__city" id="weather-city"></span>
+  </h2>
+
+  <%# The moving part. aria-live announces loading -> data / error changes to screen readers.
+      Three states toggled with "hidden": loading, details (the moving track), error. %>
+  <div class="weather-ticker__viewport" aria-live="polite">
+    <p class="weather-ticker__message" id="weather-loading">טוען נתוני מזג אוויר...</p>
+
+    <div class="weather-ticker__details" id="weather-details" hidden>
+      <%# weather.js puts the items here twice (the copy is aria-hidden) so the loop has no gap. %>
+      <div class="weather-ticker__track" id="weather-track"></div>
+    </div>
+
+    <p class="weather-ticker__message" id="weather-error" hidden>
+      <span id="weather-error-msg">מידע מזג האוויר אינו זמין כעת</span>
+      <button type="button" class="weather-ticker__retry" id="weather-retry">נסו שוב</button>
+    </p>
+  </div>
+
+  <button type="button" class="weather-ticker__refresh" id="weather-refresh" aria-label="רענון נתוני מזג אוויר" title="רענון">
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>
+  </button>
+</section>

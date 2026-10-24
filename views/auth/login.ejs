@@ -1,4 +1,7 @@
 <!DOCTYPE html>
+<%# Staff login page (reporters and editors). GET /login -> auth.controller.showLogin;
+    a failed POST /login re-renders it with the error. Receives: title, error, username.
+    A plain HTML form (no client script) - works without JavaScript. %>
 <html lang="he" dir="rtl">
 <head>
   <%- include('../partials/layout/head', { title }) %>
@@ -9,6 +12,8 @@
   <main class="container staff-page">
     <section class="login-card" aria-labelledby="login-title">
       <h1 id="login-title">התחברות לכתבים ולעורכים</h1>
+      <%# Login error: role="alert" announces it to screen readers. The raw-output tag on the form below
+          only prints a fixed attribute string (never user input), so it is safe. %>
       <% if (error) { %><p class="form-error" id="login-error" role="alert"><%= error %></p><% } %>
       <form action="/login" method="post" class="staff-form" <%- error ? 'aria-describedby="login-error"' : '' %>>
         <label for="username">שם משתמש</label>

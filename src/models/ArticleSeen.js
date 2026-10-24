@@ -1,6 +1,7 @@
+// Remembers which device (browser) has already opened which article.
+// Powers the "seen / unseen" filter on the home page. One document per (device, article) pair.
 const mongoose = require('mongoose');
 
-// Which browser (deviceId cookie) has opened which article; one row per pair.
 const articleSeenSchema = new mongoose.Schema({
   deviceId: { type: String, required: true },
   articleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Article', required: true },

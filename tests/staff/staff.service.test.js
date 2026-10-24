@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Article = require('../../src/models/Article');
-const service = require('../../src/modules/staff/staff.service');
+const service = require('../../src/services/staff.service');
 
 const user = { _id: '0123456789abcdef01234567', role: 'reporter' };
 function mockTitleLookup(t, result, onFilter = () => {}) {
@@ -90,7 +90,7 @@ test('submitting a legacy draft with a duplicate title is blocked', async (t) =>
   t.mock.method(Article, 'findById', async () => article);
   mockTitleLookup(t, { _id: 'existing' });
 
-  await assert.rejects(service.transitionArticle(article._id, user, 'submit'), {
+  await assert.rejects(service.submitArticle(article._id, user), {
     code: 'DUPLICATE_TITLE'
   });
   assert.equal(article.save.mock.callCount(), 0);
