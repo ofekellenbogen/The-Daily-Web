@@ -34,6 +34,7 @@ Open <http://localhost:3000>.
 | `MONGODB_DB`  | no       | `daily-web` | Database name                                   |
 | `PORT`        | no       | `3000`      | HTTP port                                       |
 | `NODE_ENV`    | no       |             | `production` makes cookies HTTPS-only           |
+
 ### Accounts
 
 User accounts already exist in the shared database. Log in at
@@ -44,6 +45,14 @@ User accounts already exist in the shared database. Log in at
 | Guest    | (no login)                                                | `/`         |
 | Reporter | `dana.levi`, `yossi.cohen`, `maya.mizrahi`, `amir.peretz` | `/reporter` |
 | Editor   | any account with the `editor` role                        | `/editor`   |
+
+**Using your own empty database?** There is no sign-up page, so create the first editor from the
+project folder (change the three values; the password needs 8+ characters), then log in and create
+the other users from **ניהול משתמשים**:
+
+```bash
+node -e "require('dotenv').config(); const m=require('mongoose'); const U=require('./src/models/User'); const {hashPassword}=require('./src/utils/password'); (async()=>{ await m.connect(process.env.MONGODB_URI,{dbName:process.env.MONGODB_DB||'daily-web'}); await U.create({username:'editor',displayName:'Editor',role:'editor',passwordHash:await hashPassword('change-me-123')}); await m.disconnect(); })()"
+```
 
 ---
 
@@ -65,7 +74,8 @@ browser ──► route ──► middleware (login / role check) ──► cont
 
 ```text
 app.js                          Express setup: middleware order, routes, start the server
-.env.example                    Template for the environment variables
+package.json                    Dependencies and npm scripts (start, dev, test)
+.env.example                    Template for the environment variables (copy to .env)
 
 src/
   config/database.js            Connects to MongoDB
@@ -132,12 +142,18 @@ public/                         Static files sent to the browser as-is
   images/                         placeholder article image
 
 tests/                          Automated tests (Node's built-in test runner, MongoDB is mocked)
-plan/                            Assignment PDF and the team's work split
+plan/                           Assignment PDF and the team's work split (workplan.md)
+logs/                           app.log, created when the server runs (ignored by Git)
 ```
 
 ---
 
 ## 3. Features
+
+Summary: readers (guests) browse a searchable, infinitely scrolling news feed, read articles and
+comment; reporters write articles that autosave and go through an editor's approval; editors
+review, publish, edit and delete articles, manage users, comments and statistics, and follow the
+**Impact Analytics** graph; a weather ticker shows local weather. The details follow.
 
 ### Home page – news feed (`/`)
 * Only **published** articles are shown (the query reads `publishedVersion` only).
@@ -154,6 +170,8 @@ plan/                            Assignment PDF and the team's work split
 * Title, reporter, category, publish date, main image and the full text.
 * The full article is in the **first HTML response** (EJS), so search engines can read it without JavaScript.
 * Comments: the list plus a form. A new comment appears immediately (Ajax), without reloading the list.
+  Guests can type any name (left empty it becomes "אורח"); a logged-in reporter or editor always
+  comments under their own display name (the field is read-only and the server enforces it).
 * **Every visit is counted** as a view for the statistics.
 
 ### Comment limit (spam protection)
