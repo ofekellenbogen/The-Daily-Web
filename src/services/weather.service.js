@@ -5,9 +5,8 @@
 // otherwise Tel Aviv as the default (see location.service.js).
 //
 // Scaling to thousands of readers: the server - not each browser - calls Open-Meteo,
-// at most once every 14 minutes PER AREA (the requirement allows data up to 15 minutes old).
-// Readers in the same ~10 km area share one cached copy. If Open-Meteo is down, the last
-// cached data for that area is shown.
+// at most once every 10 minutes PER AREA. Readers in the same ~10 km area share one cached
+// copy. If Open-Meteo is down, the last cached data for that area is shown.
 const logger = require('../utils/logger');
 
 // WMO weather codes (returned by Open-Meteo) -> Hebrew description and icon.
@@ -44,8 +43,9 @@ const WMO_CODE_MAP = {
 
 const DEFAULT_WEATHER_INFO = { description: 'מעונן חלקית', icon: '⛅' };
 
-// Weather data must never be older than 15 minutes; 14 keeps us safely inside that window.
-const CACHE_TTL_MS = 14 * 60 * 1000;
+// Weather on screen must never be older than 15 minutes. The browser reloads every 5 minutes
+// (public/js/weather.js), so the server cache may be at most 10 minutes old: 10 + 5 = 15.
+const CACHE_TTL_MS = 10 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 5000;
 
 // Used when the reader's location isn't known (permission refused or not supported).
@@ -192,11 +192,10 @@ async function fetchFromOpenMeteo(coords, fetchFn = globalThis.fetch) {
  * Concurrent callers for the same location share one request (stampede protection),
  * and stale cached data is served if the provider fails.
  */
-async function getWeather({ forceRefresh = false, fetchFn = globalThis.fetch, coords = DEFAULT_COORDS } = {}) {
+async function getWeather({ fetchFn = globalThis.fetch, coords = DEFAULT_COORDS } = {}) {
   const key = cacheKey(coords);
-  const cached = cache.get(key);
-  if (!forceRefresh && isCacheValid(coords)) {
-    return { ...cached.data, cached: true, stale: false };
+  if (isCacheValid(coords)) {
+    return { ...cache.get(key).data, cached: true, stale: false };
   }
 
   if (inFlight.has(key)) {

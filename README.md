@@ -97,7 +97,7 @@ src/
     analytics.service.js          data for the views-over-time graph
     admin.service.js              CRUD for users, comments and view statistics
     auth.service.js               login check, sessions
-    weather.service.js            Open-Meteo client with a 14-minute cache
+    weather.service.js            Open-Meteo client with a 10-minute cache per area
     location.service.js           reader's location and town name (default: Tel Aviv)
   middleware/
     auth.js                       loadUser, requireAuth, requireRole, sameOrigin (CSRF)
@@ -240,10 +240,11 @@ new ──► draft ──submit──► pending ──approve──► publish
     requests are spaced 1 second apart as its rules require).
   * **Not found** (permission refused or not supported): Tel Aviv is shown, marked
     "תל אביב-יפו (מיקום ברירת מחדל)". This is also shown for the moment before the reader answers.
-* The **server** calls Open-Meteo at most once every 14 minutes **per ~10 km area** and shares that
-  cached result with every reader in the area (data is never more than 15 minutes old), so thousands
-  of readers cause only a few external requests. If the service fails, the last data is shown, or a
-  friendly message - the rest of the site keeps working.
+* The **server** calls Open-Meteo at most once every 10 minutes **per ~10 km area** and shares that
+  cached result with every reader in the area, so thousands of readers cause only a few external
+  requests. The page reloads the weather by itself every 5 minutes, so what is on screen is never
+  more than 15 minutes old (10 + 5). If the service fails, the last data is shown, or a friendly
+  message - the rest of the site keeps working.
 
 ### Errors, validation, performance and logs
 * All input is validated on the server (and the browser). Invalid data returns **400**, unknown
@@ -267,7 +268,7 @@ new ──► draft ──submit──► pending ──approve──► publish
 | GET | `/api/articles` | all | Feed page (`q`, `category`, `seen`, `sort`, `cursor`) |
 | GET | `/articles/:id` | all | Article page |
 | GET / POST | `/api/articles/:id/comments` | all | List / add comments |
-| GET | `/api/weather` | all | Weather data (optional `lat`, `lon` of the reader, `refresh`) |
+| GET | `/api/weather` | all | Weather data (optional `lat`, `lon` of the reader) |
 | GET / POST | `/login` | all | Login form / log in |
 | POST | `/logout` | logged in | Log out |
 | GET | `/reporter`, `/editor` | reporter / editor | Workspaces |

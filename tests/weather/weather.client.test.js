@@ -17,17 +17,20 @@ function setup(fetch, navigator) {
     };
   }
   const ids = ['weather-loading', 'weather-details', 'weather-error', 'weather-error-msg', 'weather-city',
-    'weather-track', 'weather-refresh', 'weather-retry'];
+    'weather-track', 'weather-retry'];
   const elements = Object.fromEntries(ids.map((id) => [id, element()]));
   // Like the real page: the details start hidden until data arrives.
   elements['weather-details'].hidden = true;
+  const timers = [];
   const context = {
     document: { getElementById: (id) => elements[id] || null, createElement: element },
-    fetch, Date, console, URLSearchParams
+    fetch, Date, console, URLSearchParams,
+    // Captured instead of really waiting: tests call the timer function themselves.
+    setInterval: (fn, ms) => timers.push({ fn, ms })
   };
   if (navigator) context.navigator = navigator;
   vm.runInNewContext(script, context);
-  return { elements };
+  return { elements, timers };
 }
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
@@ -93,16 +96,21 @@ test('weather.js shows an error and retries successfully', async () => {
   assert.equal(elements['weather-error'].hidden, true);
 });
 
-test('refresh button requests ?refresh=true', async () => {
+test('the ticker reloads itself every 5 minutes, keeping the reader location', async () => {
   const urls = [];
-  const { elements } = setup(async (url) => {
+  const geolocation = {
+    getCurrentPosition(success) { success({ coords: { latitude: 31.2518, longitude: 34.7913 } }); }
+  };
+  const { timers } = setup(async (url) => {
     urls.push(url);
     return { ok: true, json: async () => ({ success: true, weather: sample }) };
-  });
+  }, { geolocation });
   await tick();
-  elements['weather-refresh'].listeners.click();
+  assert.equal(timers.length, 1);
+  assert.equal(timers[0].ms, 5 * 60 * 1000);
+  timers[0].fn();
   await tick();
-  assert.deepEqual(urls, ['/api/weather', '/api/weather?refresh=true']);
+  assert.equal(urls.at(-1), '/api/weather?lat=31.25&lon=34.79');
 });
 
 test('allowed location: weather is reloaded for the reader area and shows the town name', async () => {
@@ -118,10 +126,6 @@ test('allowed location: weather is reloaded for the reader area and shows the to
   await tick();
   assert.deepEqual(urls, ['/api/weather', '/api/weather?lat=31.25&lon=34.79']);
   assert.equal(elements['weather-city'].textContent, 'באר-שבע, ישראל');
-  // Refresh keeps using the reader's location.
-  elements['weather-refresh'].listeners.click();
-  await tick();
-  assert.equal(urls[2], '/api/weather?lat=31.25&lon=34.79&refresh=true');
 });
 
 test('refused location: only the default-location (Tel Aviv) weather is loaded', async () => {

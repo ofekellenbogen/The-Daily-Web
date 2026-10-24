@@ -43,17 +43,6 @@ test('GET /api/weather without a location uses Tel Aviv, marked as the default l
   assert.equal(json.weather.city, 'תל אביב-יפו (מיקום ברירת מחדל)');
 });
 
-test('GET /api/weather?refresh=true forces a refresh', async () => {
-  let forced = null;
-  mock.method(weatherService, 'getWeather', async ({ forceRefresh }) => {
-    forced = forceRefresh;
-    return { temperature: 24 };
-  });
-  const res = await fetch(`${baseUrl}/api/weather?refresh=true`);
-  assert.equal(res.status, 200);
-  assert.equal(forced, true);
-});
-
 test('GET /api/weather returns 503 when the service fails', async () => {
   mock.method(weatherService, 'getWeather', async () => { throw new Error('down'); });
   const res = await fetch(`${baseUrl}/api/weather`);

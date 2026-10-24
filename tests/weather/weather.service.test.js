@@ -74,7 +74,7 @@ test('getWeather still works when the provider returns only current weather', as
   assert.deepEqual(result.daily, []);
 });
 
-test('results are cached, and forceRefresh bypasses the cache', async () => {
+test('results are cached', async () => {
   let calls = 0;
   const fetchFn = async () => { calls++; return forecastResponse(); };
   const first = await weatherService.getWeather({ fetchFn });
@@ -82,13 +82,11 @@ test('results are cached, and forceRefresh bypasses the cache', async () => {
   assert.equal(calls, 1);
   assert.equal(first.cached, false);
   assert.equal(second.cached, true);
-  await weatherService.getWeather({ fetchFn, forceRefresh: true });
-  assert.equal(calls, 2);
 });
 
-test('cache expires before 15 minutes', async () => {
-  assert.ok(weatherService.CACHE_TTL_MS < 15 * 60 * 1000);
-  weatherService.setCachedData({ temperature: 1 }, Date.now() - 15 * 60 * 1000);
+test('cache lasts at most 10 minutes (+ 5-minute browser reload = never older than 15)', async () => {
+  assert.ok(weatherService.CACHE_TTL_MS <= 10 * 60 * 1000);
+  weatherService.setCachedData({ temperature: 1 }, Date.now() - 10 * 60 * 1000);
   assert.equal(weatherService.isCacheValid(), false);
 });
 
