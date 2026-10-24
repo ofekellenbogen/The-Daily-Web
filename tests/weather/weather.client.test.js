@@ -33,7 +33,7 @@ function setup(fetch, navigator) {
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 const sample = {
-  city: 'רעננה, ישראל', temperature: 26, feelsLike: 28, tempMax: 27, tempMin: 18, humidity: 54, precipitation: 0,
+  city: 'תל אביב-יפו (מיקום ברירת מחדל)', temperature: 26, feelsLike: 28, tempMax: 27, tempMin: 18, humidity: 54, precipitation: 0,
   windSpeed: 12, description: 'בהיר', icon: '☀️', updatedAt: '2026-10-24T12:00:00.000Z', stale: false,
   hourly: [{ time: 'עכשיו', temperature: 26, icon: '☀️', description: 'בהיר' }, { time: '14:00', temperature: 28, icon: '☀️', description: 'בהיר' }],
   daily: [{ date: '2026-10-25', maxTemp: 27, minTemp: 19, icon: '⛅', description: 'מעונן חלקית' }]
@@ -53,7 +53,7 @@ test('weather.js fills the ticker with current, hourly and daily items, twice fo
 
   assert.equal(elements['weather-details'].hidden, false);
   assert.equal(elements['weather-loading'].hidden, true);
-  assert.equal(elements['weather-city'].textContent, 'רעננה, ישראל');
+  assert.equal(elements['weather-city'].textContent, 'תל אביב-יפו (מיקום ברירת מחדל)');
 
   const [original, copy] = elements['weather-track'].children;
   // 6 current-condition items + 2 hours + 1 day + "updated"
@@ -112,7 +112,7 @@ test('allowed location: weather is reloaded for the reader area and shows the to
   };
   const { elements } = setup(async (url) => {
     urls.push(url);
-    const city = url.includes('lat=') ? 'באר-שבע, ישראל' : 'תל אביב-יפו, ישראל';
+    const city = url.includes('lat=') ? 'באר-שבע, ישראל' : 'תל אביב-יפו (מיקום ברירת מחדל)';
     return { ok: true, json: async () => ({ success: true, weather: { ...sample, city } }) };
   }, { geolocation });
   await tick();
@@ -124,7 +124,7 @@ test('allowed location: weather is reloaded for the reader area and shows the to
   assert.equal(urls[2], '/api/weather?lat=31.25&lon=34.79&refresh=true');
 });
 
-test('refused location: only the server-location weather is loaded', async () => {
+test('refused location: only the default-location (Tel Aviv) weather is loaded', async () => {
   const urls = [];
   const geolocation = { getCurrentPosition(success, error) { error({ code: 1 }); } };
   const { elements } = setup(async (url) => {

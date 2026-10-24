@@ -10,10 +10,10 @@ async function getWeather(req, res) {
   try {
     const forceRefresh = req.query.refresh === 'true';
     // The reader's location (with their town name) if the browser sent it,
-    // otherwise the server computer's location.
+    // otherwise the default location (Tel Aviv).
     const coords = readerLocation
       ? await locationService.describeReaderLocation(readerLocation)
-      : await locationService.getServerLocation();
+      : weatherService.DEFAULT_COORDS;
     const weather = await weatherService.getWeather({ forceRefresh, coords });
     res.set('Cache-Control', 'public, max-age=60'); // browsers may reuse the answer for a minute
     // The forecast is shared by a ~10 km area; the name is always this reader's own town.

@@ -44,7 +44,7 @@ test('getWeatherInfo maps WMO codes to Hebrew descriptions and icons', () => {
 
 test('getWeather returns current conditions, today hourly list and daily forecast', async () => {
   const result = await weatherService.getWeather({ fetchFn: async () => forecastResponse() });
-  assert.equal(result.city, 'רעננה, ישראל');
+  assert.equal(result.city, 'תל אביב-יפו (מיקום ברירת מחדל)');
   assert.equal(result.temperature, 26);
   assert.equal(result.feelsLike, 27);
   assert.equal(result.tempMax, 27);

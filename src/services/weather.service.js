@@ -1,8 +1,8 @@
 // Weather data from Open-Meteo (https://open-meteo.com): a free web service
 // that needs no API key and no credit card.
 //
-// Location: the reader's browser location when they allow it (rounded to ~10 km),
-// otherwise the server computer's location (see location.service.js).
+// Location: the reader's browser location when they allow it (weather shared per ~10 km area),
+// otherwise Tel Aviv as the default (see location.service.js).
 //
 // Scaling to thousands of readers: the server - not each browser - calls Open-Meteo,
 // at most once every 14 minutes PER AREA (the requirement allows data up to 15 minutes old).
@@ -48,11 +48,11 @@ const DEFAULT_WEATHER_INFO = { description: 'מעונן חלקית', icon: '⛅'
 const CACHE_TTL_MS = 14 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 5000;
 
-// Used when the server's own location can't be detected (see location.service.js).
+// Used when the reader's location isn't known (permission refused or not supported).
 const DEFAULT_COORDS = {
-  latitude: 32.1844,
-  longitude: 34.8708,
-  cityName: 'רעננה, ישראל'
+  latitude: 32.0809,
+  longitude: 34.7806,
+  cityName: 'תל אביב-יפו (מיקום ברירת מחדל)'
 };
 
 // Hours ahead (relative to "now") shown in the "Today" list, and number of upcoming days.
