@@ -95,3 +95,17 @@ test('submitting a legacy draft with a duplicate title is blocked', async (t) =>
   });
   assert.equal(article.save.mock.callCount(), 0);
 });
+
+test('creating an article without optional attribution fields succeeds', async (t) => {
+  const input = { ...content };
+  for (const field of ['imageCredit', 'imageSourceUrl', 'imageLicense', 'imageLicenseUrl']) {
+    delete input[field];
+  }
+  mockTitleLookup(t, null);
+  t.mock.method(Article, 'create', async (value) => new Article(value));
+  const article = await service.createArticle(user, input);
+  assert.equal(article.workingCopy.title, input.title);
+  for (const field of ['imageCredit', 'imageSourceUrl', 'imageLicense', 'imageLicenseUrl']) {
+    assert.equal(article.workingCopy[field], '');
+  }
+});

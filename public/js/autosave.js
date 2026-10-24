@@ -85,7 +85,7 @@
     button.dataset.action = 'submit'; button.textContent = 'שליחה לאישור עורך'; form.after(button);
   }
   if (backup?.content && !fieldset.disabled) {
-    for (const name of ['title', 'summary', 'body', 'category', 'imageUrl', 'imageAlt', 'imageCredit', 'imageSourceUrl', 'imageLicense', 'imageLicenseUrl']) {
+    for (const name of ['title', 'summary', 'body', 'category', 'imageUrl']) {
       if (typeof backup.content[name] === 'string') form.elements[name].value = backup.content[name];
     }
     queue();
@@ -107,6 +107,7 @@
         action === 'delete' ? 'DELETE' : 'POST', action === 'return' ? { note } : undefined);
       if (action === 'delete') return window.location.assign('/editor');
       setWorkflow({ submit: 'pending', approve: 'published', return: 'returned' }[action]); message('הפעולה הושלמה');
+      if (action === 'approve') window.location.reload();
     } catch (error) { message(error.message, true); }
     finally { busy = false; setWorkflow(editor.dataset.workflowStatus); buttons.forEach(b => { b.disabled = false; }); }
   }));

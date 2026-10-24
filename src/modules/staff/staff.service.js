@@ -44,7 +44,7 @@ async function getArticle(id, user) {
   return article;
 }
 
-function parseContent(input) {
+function parseContent(input, existingContent = {}) {
   const limits = {
     title: 200, summary: 1000, body: 50000, category: 30, imageUrl: 2000, imageAlt: 250,
     imageCredit: 250, imageSourceUrl: 2000, imageLicense: 100, imageLicenseUrl: 2000
@@ -54,7 +54,12 @@ function parseContent(input) {
     throw new HttpError(400, 'INVALID_CONTENT', 'יש לשלוח שדות תוכן בלבד');
   }
   const content = {};
+  const optionalFields = ['imageAlt', 'imageCredit', 'imageSourceUrl', 'imageLicense', 'imageLicenseUrl'];
   for (const [key, limit] of Object.entries(limits)) {
+    if (input[key] === undefined && optionalFields.includes(key)) {
+      content[key] = existingContent[key] || '';
+      continue;
+    }
     if (typeof input[key] !== 'string' || input[key].length > limit) {
       throw new HttpError(400, 'INVALID_CONTENT', 'תוכן הכתבה אינו תקין');
     }
@@ -109,7 +114,7 @@ async function updateArticle(id, user, input) {
   if (user.role === 'reporter' && article.workflowStatus === 'pending') {
     throw new HttpError(409, 'AWAITING_REVIEW', 'לא ניתן לערוך כתבה שממתינה לאישור עורך');
   }
-  const content = parseContent(input);
+  const content = parseContent(input, article.workingCopy);
   await ensureUniqueTitle(content.title, article._id);
   article.workingCopy = content;
   // Editing never changes the public snapshot, even for an editor.
@@ -122,9 +127,6 @@ async function updateArticle(id, user, input) {
 function requireCompleteContent(content) {
   if (!content.title.trim() || !content.summary.trim() || !content.body.trim() || !content.category) {
     throw new HttpError(400, 'INCOMPLETE_ARTICLE', 'יש למלא כותרת, תקציר, תוכן וקטגוריה לפני הגשה או פרסום');
-  }
-  if (!content.imageUrl.trim() || !content.imageAlt.trim()) {
-    throw new HttpError(400, 'INCOMPLETE_IMAGE', 'יש להוסיף תמונה ראשית ותיאור נגיש לפני הגשה או פרסום');
   }
 }
 
@@ -188,7 +190,9 @@ async function saveDraft(id, user, input) {
   if (!isObjectId(id)) throw new HttpError(400, 'INVALID_ID', 'מזהה טיוטה לא תקין');
   const existing = await Article.findById(id);
   if (existing) return updateArticle(id, user, input);
-  if (user.role !== 'reporter') throw new HttpError(403, 'FORBIDDEN', 'יצירת טיוטה מותרת לכתב בלבד');
+  if (!['reporter', 'editor'].includes(user.role)) {
+    throw new HttpError(403, 'FORBIDDEN', 'יצירת טיוטה מותרת לכתב ולעורך בלבד');
+  }
   const content = parseContent(input);
   await ensureUniqueTitle(content.title);
   try {

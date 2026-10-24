@@ -30,18 +30,8 @@
             <option value="<%= value %>" <%= content.category === value ? 'selected' : '' %>><%= label %></option>
           <% } %>
         </select>
-        <label for="article-image">כתובת תמונה (HTTP(S) או איור מערכת)</label>
+        <label for="article-image">כתובת תמונה (לא חובה; ללא כתובת תוצג תמונת ברירת מחדל)</label>
         <input id="article-image" name="imageUrl" type="text" inputmode="url" maxlength="2000" dir="ltr" value="<%= content.imageUrl || '' %>">
-        <label for="article-image-alt">תיאור נגיש לתמונה (נדרש לפרסום)</label>
-        <input id="article-image-alt" name="imageAlt" maxlength="250" value="<%= content.imageAlt || '' %>">
-        <label for="article-image-credit">קרדיט לתמונה</label>
-        <input id="article-image-credit" name="imageCredit" maxlength="250" value="<%= content.imageCredit || '' %>">
-        <label for="article-image-source">קישור למקור התמונה</label>
-        <input id="article-image-source" name="imageSourceUrl" type="url" maxlength="2000" dir="ltr" value="<%= content.imageSourceUrl || '' %>">
-        <label for="article-image-license">רישיון התמונה</label>
-        <input id="article-image-license" name="imageLicense" maxlength="100" value="<%= content.imageLicense || '' %>">
-        <label for="article-image-license-url">קישור לרישיון</label>
-        <input id="article-image-license-url" name="imageLicenseUrl" type="url" maxlength="2000" dir="ltr" value="<%= content.imageLicenseUrl || '' %>">
           <figure class="article-image-preview" id="draft-image-preview" <%= content.imageUrl ? '' : 'hidden' %>>
           <img <% if (content.imageUrl) { %>src="<%= content.imageUrl %>"<% } %> alt="<%= content.imageAlt || 'תצוגה מקדימה של תמונת הכתבה' %>" loading="lazy">
             <figcaption>תצוגה מקדימה של תמונת גרסת העבודה</figcaption>
@@ -49,22 +39,22 @@
         <button class="button" type="submit">שמירת כתבה</button>
       </fieldset>
     </form>
-    <% if (article) { %>
+    <% if (article || currentUser.role === 'editor') { %>
       <section class="staff-actions" aria-label="פעולות בכתבה">
         <% if (currentUser.role === 'reporter' && ['draft', 'returned', 'published'].includes(article.workflowStatus)) { %>
           <button class="button" type="button" data-action="submit">שמירה ושליחה לאישור עורך</button>
         <% } %>
         <% if (currentUser.role === 'editor') { %>
-          <button class="button" type="button" data-action="approve" <%= article.workflowStatus === 'published' ? 'hidden' : '' %>>שמירה ואישור פרסום</button>
-          <% if (article.workflowStatus === 'pending') { %>
+          <button class="button" type="button" data-action="approve" <%= article?.workflowStatus === 'published' ? 'hidden' : '' %>>שמירה ואישור פרסום</button>
+          <% if (article?.workflowStatus === 'pending') { %>
             <label for="editor-note">הערה להחזרה לתיקונים</label>
             <textarea id="editor-note" maxlength="1000" rows="3"></textarea>
             <button class="button button--secondary" type="button" data-action="return">שמירה והחזרה לתיקונים</button>
           <% } %>
-          <button class="button button--secondary" type="button" data-action="delete">מחיקת כתבה</button>
+          <% if (article) { %><button class="button button--secondary" type="button" data-action="delete">מחיקת כתבה</button><% } %>
         <% } %>
       </section>
-      <% if (currentUser.role === 'editor' && article.publishedVersion) { %>
+      <% if (currentUser.role === 'editor' && article?.publishedVersion) { %>
         <section id="approved-snapshot" class="staff-card approved-snapshot-card" aria-labelledby="published-title">
           <h2 id="published-title">הגרסה המפורסמת כעת</h2>
           <p>גרסה <%= article.publishedVersion.version %> · קטגוריה: <%= categories[article.publishedVersion.category] %></p>
