@@ -15,6 +15,10 @@ async function listArticles(user, query = {}) {
     throw new HttpError(400, 'INVALID_FILTER', 'מצב הכתבה או מספר העמוד אינם תקינים');
   }
   if (status) filter.workflowStatus = status;
+  if (query.q !== undefined) {
+    if (typeof query.q !== 'string' || query.q.length > 100) throw new HttpError(400, 'INVALID_SEARCH', 'חיפוש לא תקין');
+    if (query.q.trim()) filter['workingCopy.title'] = { $regex: query.q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+  }
   const pageNumber = Number(page);
   const articles = await Article.find(filter)
     .select('authorId workingCopy.title workingCopy.summary workingCopy.category workingCopy.imageUrl publishedVersion.title publishedVersion.imageUrl workflowStatus editorNote')

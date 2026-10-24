@@ -22,4 +22,8 @@ router.post('/api/staff/articles/:id/return', editor, controller.returnForCorrec
 router.get('/api/staff/articles/:id/published', require('./published.controller').get);
 router.delete('/api/staff/articles/:id', editor, controller.remove);
 
+router.get('/api/staff/articles/:id', async (req, res) => {
+  res.json({ data: await require('./staff.service').getArticle(req.params.id, req.user) });
+});
+
 module.exports = router;

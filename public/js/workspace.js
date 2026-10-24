@@ -46,6 +46,7 @@ async function loadArticles(append) {
   const requestId = ++latestRequest;
   const params = new URLSearchParams({ page: append ? more.dataset.nextPage : '1' });
   if (filter) params.set('status', filter.elements.status.value);
+  if (filter?.elements.q?.value.trim()) params.set('q', filter.elements.q.value.trim());
   more.disabled = true;
   message.classList.remove('form-error');
   message.textContent = 'טוען כתבות...';

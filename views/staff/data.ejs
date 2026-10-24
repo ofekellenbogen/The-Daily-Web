@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <%- include('../partials/layout/head', { title }) %>
+  <link rel="stylesheet" href="/css/staff.css">
+</head>
+<body>
+  <%- include('../partials/layout/header') %>
+  <main class="container staff-page">
+    <h1>ניהול נתונים</h1>
+    <p>משתמשים, תגובות ונתוני צפייה. <a href="/editor">לניהול כתבות</a></p>
+    <form id="data-search" class="staff-filter">
+      <label for="data-resource">סוג נתונים</label>
+      <select id="data-resource"><option value="users">משתמשים</option><option value="comments">תגובות</option><option value="stats">נתוני צפייה</option></select>
+      <label for="data-query">חיפוש</label><input id="data-query" maxlength="100" placeholder="שם משתמש / תוכן תגובה / מזהה כתבה">
+      <button class="button">חיפוש</button>
+      <button type="button" id="data-new" class="button button--secondary">רשומה חדשה</button>
+    </form>
+    <p id="data-status" role="status" aria-live="polite"></p>
+    <form id="data-form" class="staff-form staff-card" hidden>
+      <h2 id="data-form-title">רשומה חדשה</h2>
+      <div id="data-fields" class="staff-form"></div>
+      <div class="staff-actions"><button class="button">שמירה</button><button type="button" id="data-cancel" class="button button--secondary">ביטול</button></div>
+    </form>
+    <ul id="data-list" class="article-list" aria-label="רשומות לניהול"></ul>
+    <button id="data-more" class="button" hidden>טעינת רשומות נוספות</button>
+    <noscript>יש להפעיל JavaScript לניהול הנתונים.</noscript>
+  </main>
+  <%- include('../partials/layout/footer') %>
+  <script src="/js/data.js" defer></script>
+</body>
+</html>

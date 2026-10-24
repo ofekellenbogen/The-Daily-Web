@@ -1,0 +1,11 @@
+const router = require('express').Router();
+const controller = require('./admin.controller');
+const { requireAuth, requireRole, sameOrigin } = require('../../middleware/auth');
+router.get('/editor/data', requireAuth, requireRole('editor'), controller.page);
+router.use('/api/admin', requireAuth, requireRole('editor'), sameOrigin);
+router.get('/api/admin/:resource', controller.list);
+router.get('/api/admin/:resource/:id', controller.get);
+router.post('/api/admin/:resource', controller.create);
+router.patch('/api/admin/:resource/:id', controller.update);
+router.delete('/api/admin/:resource/:id', controller.remove);
+module.exports = router;

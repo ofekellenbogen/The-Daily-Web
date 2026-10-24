@@ -80,6 +80,32 @@ Passwords are stored as salted, one-way `scrypt` hashes using Node's built-in `c
 
 Create/save requests use JSON fields `title`, `summary`, `body`, `category`, and `imageUrl`. Guests receive `401` for protected API requests and are redirected to login for protected pages. Forbidden operations return `403`, invalid data `400`, missing articles `404`, and invalid workflow transitions `409`. Errors do not stop the server.
 
+## CRUD management
+
+Editors can open **ניהול נתונים** (`/editor/data`) to create, list/search, edit and delete users,
+comments and daily view statistics. Lists are paginated (20 per page). Search users by username/name,
+comments by text/name, or statistics by article ID. The existing article workspace supplies article
+CRUD, now with title search for owned drafts as well as the existing public title search.
+
+REST endpoints: GET/POST `/api/admin/users|comments|stats`, GET/PATCH/DELETE
+`/api/admin/:resource/:id`. Article read: GET `/api/staff/articles/:id` with ownership enforcement.
+All admin endpoints require an authenticated editor and reject cross-origin requests.
+Passwords are hashed and never returned. Changing a password invalidates that user's sessions.
+Self-deletion/demotion is blocked. Users with articles cannot be deleted until those articles are
+handled, avoiding orphaned ownership. Comments must reference an existing article.
+
+View statistics creation accepts `{ articleId, dayUtc: 'YYYY-MM-DD', slot, count }`; update accepts
+`{ slot, count }`. Slots are UTC five-minute buckets, 0–287. The UI uses date/time fields. Updating a
+bucket adjusts the daily total atomically, including when visits arrive concurrently. Duplicate
+username or article/day combinations return 409; malformed IDs, dates and input return 400.
+Operational mutations are logged. The moderation endpoints do not expose device identifiers.
+
+`npm test` exercises authenticated HTTP CRUD, role/origin restrictions, hashing, reference checks,
+invalid input and bucket-total correction. Database calls are mocked in the unit suite.
+Run `node scripts/verify/features.js crud` for live HTTP/MongoDB verification in an isolated temporary
+database that is removed afterward; this also passed during implementation. This branch is independent
+of `feature/issue-10-autosave`; merge both for both features.
+
 ## Project structure
 
 ```text
