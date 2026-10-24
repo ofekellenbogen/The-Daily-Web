@@ -47,12 +47,11 @@
       const li = document.createElement('li'), card = document.createElement('article'); card.className = 'staff-card';
       const heading = document.createElement('h2'); heading.textContent = row.displayName;
       const detail = document.createElement('p'); detail.textContent = `${row.username} · ${row.role === 'editor' ? 'עורך' : 'כתב'}`;
-      const identifier = document.createElement('p'); identifier.textContent = `מזהה: ${row._id}`; identifier.style.overflowWrap = 'anywhere';
       const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'button'; edit.textContent = 'עריכה'; edit.onclick = () => open(row);
       const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'button button--secondary'; remove.textContent = 'מחיקה';
       remove.onclick = () => { if (confirm('למחוק את המשתמש?')) void run(async () => { await api(`/${row._id}`, 'DELETE'); form.hidden = true; await load(); }); };
       const actions = document.createElement('div'); actions.className = 'staff-actions'; actions.append(edit, remove);
-      card.append(heading, detail, identifier, actions); li.append(card); $('data-list').append(li);
+      card.append(heading, detail, actions); li.append(card); $('data-list').append(li);
     }
     nextPage = result.nextPage; $('data-more').hidden = !nextPage;
     if (!result.data.length && !append) status.textContent = 'לא נמצאו משתמשים';
