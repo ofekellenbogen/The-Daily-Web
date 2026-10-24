@@ -105,23 +105,23 @@ test('refresh button requests ?refresh=true', async () => {
   assert.deepEqual(urls, ['/api/weather', '/api/weather?refresh=true']);
 });
 
-test('allowed location: weather is reloaded for the reader area with rounded coordinates', async () => {
+test('allowed location: weather is reloaded for the reader area and shows the town name', async () => {
   const urls = [];
   const geolocation = {
     getCurrentPosition(success) { success({ coords: { latitude: 31.2518, longitude: 34.7913 } }); }
   };
   const { elements } = setup(async (url) => {
     urls.push(url);
-    const city = url.includes('lat=') ? 'המיקום שלך' : 'תל אביב-יפו, ישראל';
+    const city = url.includes('lat=') ? 'באר-שבע, ישראל' : 'תל אביב-יפו, ישראל';
     return { ok: true, json: async () => ({ success: true, weather: { ...sample, city } }) };
   }, { geolocation });
   await tick();
-  assert.deepEqual(urls, ['/api/weather', '/api/weather?lat=31.3&lon=34.8']);
-  assert.equal(elements['weather-city'].textContent, 'המיקום שלך');
+  assert.deepEqual(urls, ['/api/weather', '/api/weather?lat=31.25&lon=34.79']);
+  assert.equal(elements['weather-city'].textContent, 'באר-שבע, ישראל');
   // Refresh keeps using the reader's location.
   elements['weather-refresh'].listeners.click();
   await tick();
-  assert.equal(urls[2], '/api/weather?lat=31.3&lon=34.8&refresh=true');
+  assert.equal(urls[2], '/api/weather?lat=31.25&lon=34.79&refresh=true');
 });
 
 test('refused location: only the server-location weather is loaded', async () => {

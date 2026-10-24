@@ -235,7 +235,9 @@ new ──► draft ──submit──► pending ──approve──► publish
   the next days; it pauses on hover and stays still for users who prefer reduced motion.
 * **Location:** the page first shows the weather for the server computer's location, then asks the
   reader for permission to use their location. If allowed, the ticker switches to the reader's own
-  area ("המיקום שלך"). Only coordinates rounded to ~10 km are sent, never the exact position.
+  town, e.g. "באר-שבע, ישראל". The browser sends coordinates rounded to ~1 km (never the exact
+  position); the town name comes from OpenStreetMap's free **Nominatim** reverse-geocoding service
+  (each ~1 km cell is looked up once and remembered; requests are spaced 1 second apart as its rules require).
   The server's location is found from its public IP address (ipwho.is, free, no key; approximate,
   often Tel Aviv in Israel) with a Hebrew city name from Open-Meteo's geocoding API; if that fails, Raanana is used.
 * The **server** calls Open-Meteo at most once every 14 minutes **per ~10 km area** and shares that

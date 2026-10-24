@@ -57,12 +57,22 @@ test('GET /api/weather returns 503 when the service fails', async () => {
   assert.equal((await res.json()).success, false);
 });
 
-test('GET /api/weather?lat=&lon= uses the reader location, rounded', async () => {
+test('GET /api/weather?lat=&lon= uses the reader location and returns their town name', async () => {
   let coords = null;
-  mock.method(weatherService, 'getWeather', async (options) => { coords = options.coords; return { temperature: 20 }; });
+  let named = null;
+  mock.method(locationService, 'describeReaderLocation', async (location) => {
+    named = location;
+    return { latitude: 31.3, longitude: 34.8, cityName: 'באר-שבע, ישראל' };
+  });
+  mock.method(weatherService, 'getWeather', async (options) => {
+    coords = options.coords;
+    return { temperature: 20, city: 'another town in the same area' };
+  });
   const res = await fetch(`${baseUrl}/api/weather?lat=31.2518&lon=34.7913`);
   assert.equal(res.status, 200);
-  assert.deepEqual(coords, { latitude: 31.3, longitude: 34.8, cityName: 'המיקום שלך' });
+  assert.deepEqual(named, { latitude: 31.25, longitude: 34.79 });
+  assert.deepEqual(coords, { latitude: 31.3, longitude: 34.8, cityName: 'באר-שבע, ישראל' });
+  assert.equal((await res.json()).weather.city, 'באר-שבע, ישראל');
 });
 
 test('GET /api/weather with an invalid location returns 400', async () => {
