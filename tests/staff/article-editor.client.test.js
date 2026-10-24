@@ -147,7 +147,7 @@ test('network failure preserves unsent content and warns before closing; online 
   assert.equal(page.storage.size, 0);
 });
 
-test('manual Save and autosave send the same content through the same PUT endpoint', async () => {
+test('implicit form submission and autosave send the same content through the same PUT endpoint', async () => {
   const requests = [];
   const page = setup(async (url, options) => {
     requests.push({ url, method: options.method, body: options.body });

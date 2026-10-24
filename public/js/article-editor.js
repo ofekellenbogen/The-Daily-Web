@@ -249,7 +249,7 @@
 
   form.addEventListener('input', queueSave);
   form.addEventListener('change', queueSave);
-  // The "Save" button just triggers the same autosave immediately.
+  // Keep implicit form submission on the page and use the same autosave path.
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     queueSave();
