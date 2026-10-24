@@ -56,3 +56,16 @@ test('GET /api/weather returns 503 when the service fails', async () => {
   assert.equal(res.status, 503);
   assert.equal((await res.json()).success, false);
 });
+
+test('GET /api/weather?lat=&lon= uses the reader location, rounded', async () => {
+  let coords = null;
+  mock.method(weatherService, 'getWeather', async (options) => { coords = options.coords; return { temperature: 20 }; });
+  const res = await fetch(`${baseUrl}/api/weather?lat=31.2518&lon=34.7913`);
+  assert.equal(res.status, 200);
+  assert.deepEqual(coords, { latitude: 31.3, longitude: 34.8, cityName: 'המיקום שלך' });
+});
+
+test('GET /api/weather with an invalid location returns 400', async () => {
+  const res = await fetch(`${baseUrl}/api/weather?lat=999&lon=34`);
+  assert.equal(res.status, 400);
+});

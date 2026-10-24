@@ -1,13 +1,16 @@
 // Moving weather ticker at the top of the home page (views/partials/weather.ejs).
 //
 // Responsibilities:
-//   1. Loads the weather from GET /api/weather when the page opens and turns it into a row of
-//      short items (now, feels-like, high/low, rain, wind, humidity, hourly and daily forecast).
-//   2. The items are added twice to the track; CSS moves the track so the loop never shows a gap
+//   1. Loads the weather from GET /api/weather when the page opens (server's location) and turns
+//      it into a row of short items (now, feels-like, high/low, rain, wind, humidity, hourly and
+//      daily forecast).
+//   2. Asks the reader for their location (browser permission prompt). If allowed, reloads the
+//      weather for their area: GET /api/weather?lat=..&lon=.. (rounded to ~10 km).
+//   3. The items are added twice to the track; CSS moves the track so the loop never shows a gap
 //      (see .weather-ticker__track in public.css).
-//   3. The "refresh" button asks the server for fresh data (GET /api/weather?refresh=true),
+//   4. The "refresh" button asks the server for fresh data (&refresh=true),
 //      limited to one click every 3 seconds.
-//   4. On failure an error message with a "retry" button replaces the moving items.
+//   5. On failure an error message with a "retry" button replaces the moving items.
 (function () {
   'use strict';
 
@@ -25,9 +28,12 @@
   if (!loadingEl || !detailsEl || !errorEl || !trackEl) return;
 
   const REFRESH_THROTTLE_MS = 3000;
+  // Reuse a location the browser found in the last 30 minutes; give up after 10 seconds.
+  const GEOLOCATION_OPTIONS = { maximumAge: 30 * 60 * 1000, timeout: 10000 };
 
-  let isFetching = false; // prevents two requests at the same time
+  let requestId = 0; // increases on every request; answers to older requests are ignored
   let lastRefreshClick = 0; // time (ms) of the last accepted refresh click
+  let readerCoords = null; // { lat, lon } once the reader allows location access
 
   // ===== Formatting helpers ========================================================
   // "2026-10-24T12:00:00Z" -> "15:00" (local time). Invalid input gives ''.
@@ -122,7 +128,7 @@
 
   function showDetails(weather) {
     const cityEl = byId('weather-city');
-    if (cityEl) cityEl.textContent = weather.city || 'רעננה, ישראל';
+    if (cityEl) cityEl.textContent = weather.city || '';
 
     const items = buildItems(weather);
     trackEl.replaceChildren(group(items, false), group(items, true));
@@ -142,14 +148,27 @@
   }
 
   // ===== Loading the weather =======================================================
+  // /api/weather, plus ?lat=&lon= when the reader shared their location, plus ?refresh=true.
+  function weatherUrl(forceRefresh) {
+    const params = new URLSearchParams();
+    if (readerCoords) {
+      params.set('lat', readerCoords.lat);
+      params.set('lon', readerCoords.lon);
+    }
+    if (forceRefresh) params.set('refresh', 'true');
+    const query = params.toString();
+    return query ? `/api/weather?${query}` : '/api/weather';
+  }
+
   async function loadWeather(forceRefresh = false) {
-    if (isFetching) return;
-    isFetching = true;
-    showLoading();
+    const currentRequest = ++requestId;
+    // Show "loading" only when there is nothing on screen yet; otherwise keep the
+    // current ticker moving until the new data arrives.
+    if (detailsEl.hidden) showLoading();
+    if (refreshBtn) refreshBtn.disabled = true;
 
     try {
-      const url = forceRefresh ? '/api/weather?refresh=true' : '/api/weather';
-      const response = await fetch(url, {
+      const response = await fetch(weatherUrl(forceRefresh), {
         headers: { Accept: 'application/json' }
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -159,14 +178,34 @@
         throw new Error(data.message || 'נתוני מזג אוויר חסרים');
       }
 
-      showDetails(data.weather);
+      if (currentRequest === requestId) showDetails(data.weather);
     } catch (err) {
+      if (currentRequest !== requestId) return; // a newer request is already running
       // The technical error goes to the console; the user sees a friendly Hebrew message.
       console.warn('[weather] client error fetching weather:', err.message);
-      showError('שירות מזג האוויר אינו זמין כעת. נסו שוב מאוחר יותר.');
-    } finally {
-      isFetching = false;
+      // Keep showing the previous weather if there is some; show the error only when there is none.
+      if (detailsEl.hidden) showError('שירות מזג האוויר אינו זמין כעת. נסו שוב מאוחר יותר.');
+      else if (refreshBtn) refreshBtn.disabled = false;
     }
+  }
+
+  // Asks the browser for the reader's location (the browser shows a permission prompt).
+  // If allowed, the weather is reloaded for their area. If refused or unavailable,
+  // the ticker simply keeps showing the weather for the server's location.
+  function useReaderLocation() {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        // Only ~10 km precision is sent to the server (1 decimal), never the exact position.
+        readerCoords = {
+          lat: position.coords.latitude.toFixed(1),
+          lon: position.coords.longitude.toFixed(1)
+        };
+        loadWeather(false);
+      },
+      () => { /* permission denied or no location: keep the server-location weather */ },
+      GEOLOCATION_OPTIONS
+    );
   }
 
   // ===== Buttons ===================================================================
@@ -182,5 +221,7 @@
 
   if (retryBtn) retryBtn.addEventListener('click', () => loadWeather(false));
 
+  // Show weather immediately (server location), then switch to the reader's own area if allowed.
   loadWeather(false);
+  useReaderLocation();
 })();

@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const script = readFileSync(path.join(__dirname, '../../public/js/weather.js'), 'utf8');
 
-function setup(fetch) {
+function setup(fetch, navigator) {
   function element() {
     return {
       children: [], listeners: {}, attributes: {}, hidden: false, disabled: false, textContent: '', dateTime: '', className: '', title: '',
@@ -19,10 +19,14 @@ function setup(fetch) {
   const ids = ['weather-loading', 'weather-details', 'weather-error', 'weather-error-msg', 'weather-city',
     'weather-track', 'weather-refresh', 'weather-retry'];
   const elements = Object.fromEntries(ids.map((id) => [id, element()]));
-  vm.runInNewContext(script, {
+  // Like the real page: the details start hidden until data arrives.
+  elements['weather-details'].hidden = true;
+  const context = {
     document: { getElementById: (id) => elements[id] || null, createElement: element },
-    fetch, Date, console
-  });
+    fetch, Date, console, URLSearchParams
+  };
+  if (navigator) context.navigator = navigator;
+  vm.runInNewContext(script, context);
   return { elements };
 }
 
@@ -99,4 +103,35 @@ test('refresh button requests ?refresh=true', async () => {
   elements['weather-refresh'].listeners.click();
   await tick();
   assert.deepEqual(urls, ['/api/weather', '/api/weather?refresh=true']);
+});
+
+test('allowed location: weather is reloaded for the reader area with rounded coordinates', async () => {
+  const urls = [];
+  const geolocation = {
+    getCurrentPosition(success) { success({ coords: { latitude: 31.2518, longitude: 34.7913 } }); }
+  };
+  const { elements } = setup(async (url) => {
+    urls.push(url);
+    const city = url.includes('lat=') ? 'המיקום שלך' : 'תל אביב-יפו, ישראל';
+    return { ok: true, json: async () => ({ success: true, weather: { ...sample, city } }) };
+  }, { geolocation });
+  await tick();
+  assert.deepEqual(urls, ['/api/weather', '/api/weather?lat=31.3&lon=34.8']);
+  assert.equal(elements['weather-city'].textContent, 'המיקום שלך');
+  // Refresh keeps using the reader's location.
+  elements['weather-refresh'].listeners.click();
+  await tick();
+  assert.equal(urls[2], '/api/weather?lat=31.3&lon=34.8&refresh=true');
+});
+
+test('refused location: only the server-location weather is loaded', async () => {
+  const urls = [];
+  const geolocation = { getCurrentPosition(success, error) { error({ code: 1 }); } };
+  const { elements } = setup(async (url) => {
+    urls.push(url);
+    return { ok: true, json: async () => ({ success: true, weather: sample }) };
+  }, { geolocation });
+  await tick();
+  assert.deepEqual(urls, ['/api/weather']);
+  assert.equal(elements['weather-details'].hidden, false);
 });

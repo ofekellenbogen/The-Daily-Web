@@ -1,10 +1,13 @@
-// Weather widget data from Open-Meteo (https://open-meteo.com): a free web service
-// that needs no API key and no credit card. The location is the server computer's
-// own location (see location.service.js).
+// Weather data from Open-Meteo (https://open-meteo.com): a free web service
+// that needs no API key and no credit card.
+//
+// Location: the reader's browser location when they allow it (rounded to ~10 km),
+// otherwise the server computer's location (see location.service.js).
 //
 // Scaling to thousands of readers: the server - not each browser - calls Open-Meteo,
-// at most once every 14 minutes (the requirement allows data up to 15 minutes old).
-// All readers get the cached copy. If Open-Meteo is down, the last cached data is shown.
+// at most once every 14 minutes PER AREA (the requirement allows data up to 15 minutes old).
+// Readers in the same ~10 km area share one cached copy. If Open-Meteo is down, the last
+// cached data for that area is shown.
 const logger = require('../utils/logger');
 
 // WMO weather codes (returned by Open-Meteo) -> Hebrew description and icon.
@@ -56,10 +59,16 @@ const DEFAULT_COORDS = {
 const HOURLY_OFFSETS = [0, 3, 6, 9, 12];
 const FORECAST_DAYS = 5;
 
-// The cached response and when it was fetched (kept in server memory).
-let cache = { data: null, fetchedAt: 0 };
-// While a request to Open-Meteo is running, other callers wait for the same promise.
-let inFlightPromise = null;
+// Cached responses, one per location: "lat,lon" -> { data, fetchedAt } (kept in server memory).
+const cache = new Map();
+// While a request to Open-Meteo is running for a location, other callers wait for the same promise.
+const inFlight = new Map();
+// Memory limit: at most this many locations are cached (the oldest is removed first).
+const MAX_CACHED_LOCATIONS = 1000;
+
+function cacheKey(coords) {
+  return `${coords.latitude},${coords.longitude}`;
+}
 
 function getWeatherInfo(code, isDay = true) {
   const info = WMO_CODE_MAP[code] || DEFAULT_WEATHER_INFO;
@@ -68,17 +77,21 @@ function getWeatherInfo(code, isDay = true) {
   return info;
 }
 
-function isCacheValid() {
-  return Boolean(cache.data && Date.now() - cache.fetchedAt < CACHE_TTL_MS);
+function isCacheValid(coords = DEFAULT_COORDS) {
+  const entry = cache.get(cacheKey(coords));
+  return Boolean(entry && Date.now() - entry.fetchedAt < CACHE_TTL_MS);
 }
 
 function clearCache() {
-  cache = { data: null, fetchedAt: 0 };
-  inFlightPromise = null;
+  cache.clear();
+  inFlight.clear();
 }
 
-function setCachedData(data, fetchedAt = Date.now()) {
-  cache = { data, fetchedAt };
+function setCachedData(data, fetchedAt = Date.now(), coords = DEFAULT_COORDS) {
+  const key = cacheKey(coords);
+  cache.delete(key); // re-inserting moves it to the end (newest)
+  if (cache.size >= MAX_CACHED_LOCATIONS) cache.delete(cache.keys().next().value);
+  cache.set(key, { data, fetchedAt });
 }
 
 function round(value, fallback = null) {
@@ -175,36 +188,40 @@ async function fetchFromOpenMeteo(coords, fetchFn = globalThis.fetch) {
 }
 
 /**
- * Returns weather data from cache or the external provider.
- * Concurrent callers share one request (stampede protection) and a stale
- * cache is served if the provider fails.
+ * Returns weather data for a location from the cache or the external provider.
+ * Concurrent callers for the same location share one request (stampede protection),
+ * and stale cached data is served if the provider fails.
  */
 async function getWeather({ forceRefresh = false, fetchFn = globalThis.fetch, coords = DEFAULT_COORDS } = {}) {
-  if (!forceRefresh && isCacheValid() && cache.data.city === coords.cityName) {
-    return { ...cache.data, cached: true, stale: false };
+  const key = cacheKey(coords);
+  const cached = cache.get(key);
+  if (!forceRefresh && isCacheValid(coords)) {
+    return { ...cached.data, cached: true, stale: false };
   }
 
-  if (inFlightPromise) {
-    return inFlightPromise;
+  if (inFlight.has(key)) {
+    return inFlight.get(key);
   }
 
-  inFlightPromise = (async () => {
+  const promise = (async () => {
     try {
       const freshData = await fetchFromOpenMeteo(coords, fetchFn);
-      cache = { data: freshData, fetchedAt: Date.now() };
+      setCachedData(freshData, Date.now(), coords);
       return { ...freshData, cached: false, stale: false };
     } catch (err) {
       logger.error('[weather] Failed to fetch external weather data:', err.message);
-      if (cache.data) {
-        return { ...cache.data, cached: true, stale: true };
+      const old = cache.get(key);
+      if (old) {
+        return { ...old.data, cached: true, stale: true };
       }
       throw err;
     } finally {
-      inFlightPromise = null;
+      inFlight.delete(key);
     }
   })();
+  inFlight.set(key, promise);
 
-  return inFlightPromise;
+  return promise;
 }
 
 module.exports = {
