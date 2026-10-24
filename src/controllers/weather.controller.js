@@ -14,7 +14,8 @@ async function getWeather(req, res) {
       ? await locationService.describeReaderLocation(readerLocation)
       : weatherService.DEFAULT_COORDS;
     const weather = await weatherService.getWeather({ coords });
-    res.set('Cache-Control', 'public, max-age=60'); // browsers may reuse the answer for a minute
+    // no-cache: the browser must ask the server on every reload, so its copy never adds extra delay.
+    res.set('Cache-Control', 'no-cache');
     // The forecast is shared by a ~10 km area; the name is always this reader's own town.
     return res.json({ success: true, weather: { ...weather, city: coords.cityName } });
   } catch (err) {

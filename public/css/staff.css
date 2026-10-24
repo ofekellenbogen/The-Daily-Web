@@ -64,6 +64,10 @@
 
 /* ===== Editor action buttons, published-version snapshot, image preview ===== */
 .staff-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 24px 0; }
+/* The return note + button group: its children join the .staff-actions flex row directly. */
+.return-panel { display: contents; }
+/* "Still live" note for a published article that has an update in progress. */
+.live-note { color: #176b54; font-weight: 600; }
 .approved-snapshot-card { margin-top: 28px; border-color: #a8d8cd; background: linear-gradient(135deg, #f4fcfa, var(--color-surface)); }
 .approved-snapshot-card__body { margin-top: 18px; padding-top: 18px; border-top: 1px solid #cfe8e1; }
 .published-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75; }

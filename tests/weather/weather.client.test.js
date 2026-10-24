@@ -96,6 +96,23 @@ test('weather.js shows an error and retries successfully', async () => {
   assert.equal(elements['weather-error'].hidden, true);
 });
 
+test('a failed reload keeps fresh weather on screen, but replaces weather 15+ minutes old with an error', async () => {
+  for (const [ageMinutes, expectError] of [[10, false], [15, true]]) {
+    let attempts = 0;
+    const updatedAt = new Date(Date.now() - ageMinutes * 60 * 1000).toISOString();
+    const { elements, timers } = setup(async () => {
+      attempts++;
+      if (attempts === 1) return { ok: true, json: async () => ({ success: true, weather: { ...sample, updatedAt } }) };
+      return { ok: false, status: 503, json: async () => ({}) };
+    });
+    await tick();
+    timers[0].fn();
+    await tick();
+    assert.equal(elements['weather-error'].hidden, !expectError);
+    assert.equal(elements['weather-details'].hidden, expectError);
+  }
+});
+
 test('the ticker reloads itself every 5 minutes, keeping the reader location', async () => {
   const urls = [];
   const geolocation = {

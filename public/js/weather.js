@@ -10,7 +10,8 @@
 //   3. The items are added twice to the track; CSS moves the track so the loop never shows a gap
 //      (see .weather-ticker__track in public.css).
 //   4. Reloads the weather by itself every 5 minutes, so a page left open never shows old data
-//      (5 minutes here + at most 10 minutes in the server cache = never older than 15 minutes).
+//      (5 minutes here + at most 10 minutes old from the server = never older than 15 minutes).
+//      If reloading fails, the previous weather stays only while it is under 15 minutes old.
 //   5. On failure an error message with a "retry" button replaces the moving items.
 (function () {
   'use strict';
@@ -28,11 +29,14 @@
   if (!loadingEl || !detailsEl || !errorEl || !trackEl) return;
 
   const AUTO_REFRESH_MS = 5 * 60 * 1000;
+  // Weather on screen may be at most this old (requirement: up to 15 minutes behind).
+  const MAX_AGE_MS = 15 * 60 * 1000;
   // Reuse a location the browser found in the last 30 minutes; give up after 10 seconds.
   const GEOLOCATION_OPTIONS = { maximumAge: 30 * 60 * 1000, timeout: 10000 };
 
   let requestId = 0; // increases on every request; answers to older requests are ignored
   let readerCoords = null; // { lat, lon } once the reader allows location access
+  let shownUpdatedAt = 0; // when the weather currently on screen was fetched (ms)
 
   // ===== Formatting helpers ========================================================
   // "2026-10-24T12:00:00Z" -> "15:00" (local time). Invalid input gives ''.
@@ -130,6 +134,7 @@
 
     const items = buildItems(weather);
     trackEl.replaceChildren(group(items, false), group(items, true));
+    shownUpdatedAt = Date.parse(weather.updatedAt) || Date.now();
 
     loadingEl.hidden = true;
     detailsEl.hidden = false;
@@ -173,8 +178,9 @@
       if (currentRequest !== requestId) return; // a newer request is already running
       // The technical error goes to the console; the user sees a friendly Hebrew message.
       console.warn('[weather] client error fetching weather:', err.message);
-      // Keep showing the previous weather if there is some; show the error only when there is none.
-      if (detailsEl.hidden) showError('שירות מזג האוויר אינו זמין כעת. נסו שוב מאוחר יותר.');
+      // Keep showing the previous weather while it is still fresh enough; otherwise show the error.
+      const tooOld = Date.now() - shownUpdatedAt >= MAX_AGE_MS;
+      if (detailsEl.hidden || tooOld) showError('שירות מזג האוויר אינו זמין כעת. נסו שוב מאוחר יותר.');
     }
   }
 
