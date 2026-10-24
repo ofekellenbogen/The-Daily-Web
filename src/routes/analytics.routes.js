@@ -13,6 +13,7 @@ router.use('/api/analytics', requireAuth, editorOnly, sameOrigin, (req, res, nex
   res.set('Cache-Control', 'no-store');
   next();
 });
+router.get('/api/analytics/overview', controller.overview);
 router.get('/api/analytics/articles', controller.articles);
 router.get('/api/analytics/articles/:id', controller.article);
 
