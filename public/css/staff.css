@@ -66,6 +66,8 @@
 .staff-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 24px 0; }
 /* The return note + button group: its children join the .staff-actions flex row directly. */
 .return-panel { display: contents; }
+/* A full-width label starts a new row, so it sits below the approve button. */
+.return-panel label { flex: 0 0 100%; }
 /* "Still live" note for a published article that has an update in progress. */
 .live-note { color: #176b54; font-weight: 600; }
 .approved-snapshot-card { margin-top: 28px; border-color: #a8d8cd; background: linear-gradient(135deg, #f4fcfa, var(--color-surface)); }
