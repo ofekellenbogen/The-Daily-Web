@@ -4,6 +4,7 @@
 // Scaling to thousands of readers: the server - not each browser - calls Open-Meteo,
 // at most once every 14 minutes (the requirement allows data up to 15 minutes old).
 // All readers get the cached copy. If Open-Meteo is down, the last cached data is shown.
+const logger = require('../utils/logger');
 
 // WMO weather codes (returned by Open-Meteo) -> Hebrew description and icon.
 const WMO_CODE_MAP = {
@@ -191,7 +192,7 @@ async function getWeather({ forceRefresh = false, fetchFn = globalThis.fetch, co
       cache = { data: freshData, fetchedAt: Date.now() };
       return { ...freshData, cached: false, stale: false };
     } catch (err) {
-      console.error('[weather] Failed to fetch external weather data:', err.message);
+      logger.error('[weather] Failed to fetch external weather data:', err.message);
       if (cache.data) {
         return { ...cache.data, cached: true, stale: true };
       }

@@ -1,5 +1,6 @@
 // Connects Mongoose to MongoDB. Called once from app.js before the server starts listening.
 const mongoose = require('mongoose');
+const logger = require('../utils/logger');
 
 async function connectDatabase(uri) {
   if (!uri) {
@@ -7,7 +8,7 @@ async function connectDatabase(uri) {
   }
   // MONGODB_DB lets every developer pick a database name without changing the URI.
   await mongoose.connect(uri, { dbName: process.env.MONGODB_DB || 'daily-web' });
-  console.log('[db] connected');
+  logger.info('[db] connected');
 }
 
 module.exports = { connectDatabase };

@@ -3,6 +3,7 @@ const articleService = require('../services/article.service');
 const commentService = require('../services/comment.service');
 const viewTracking = require('../services/viewTracking.service');
 const { renderArticleIllustration } = require('../services/articleImage.service');
+const logger = require('../utils/logger');
 
 // Dates are shown in Israel time, e.g. "24 באוק׳ 2026, 14:00".
 const dateFormatter = new Intl.DateTimeFormat('he-IL', {
@@ -27,7 +28,7 @@ async function renderArticle(req, res) {
     commentService.countComments(article.id),
     // Every visit counts as a view. If recording fails we only log it - the reader still gets the article.
     viewTracking.recordVisit(article.id, req.deviceId).catch((err) => {
-      console.error(`[views] failed to record a visit to ${article.id}`, err);
+      logger.error(`[views] failed to record a visit to ${article.id}`, err);
     })
   ]);
 

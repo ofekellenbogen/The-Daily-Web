@@ -1,160 +1,293 @@
 # The Daily Web
 
-A news site built with Node.js 20+, Express, EJS, MongoDB/Mongoose and vanilla JavaScript. The server follows MVC: models store data, controllers handle requests, services contain the application logic, and EJS views render HTML. No additional authentication or frontend libraries are needed.
+A news publishing system: readers browse and comment on articles, reporters write them,
+editors review, publish and analyze them.
 
-## Automatic saving (issue #10)
+Built only with technologies from the course: **Node.js, Express, MongoDB/Mongoose, EJS,
+HTML5, CSS (Flexbox/Grid) and vanilla JavaScript (Ajax with `fetch`)**. The only extra
+packages are `dotenv` (reads `.env`) and `chart.js` (the analytics graph, allowed by the spec).
 
-The editing page saves on input/change without a Save click, using serialized PUT requests to
-`/api/staff/drafts/:id`. A stable draft ID makes creation and retries idempotent. MongoDB is the
-source for resuming a saved draft after refresh, server restart or on another computer.
-The approved snapshot is never updated by autosave. Pending articles remain locked to reporters.
-An account-scoped browser backup protects unsent text on the same computer; network failures show
-an error and retry automatically. Closing while a request is pending triggers a browser warning.
-Wait for “כל השינויים נשמרו” before switching computers: offline text cannot reach another device.
-Submission waits for saving to finish and remains an explicit action.
+---
 
-Manual check: start a new article and type without clicking Save; wait for the saved indicator,
-refresh, reopen from the workspace and sign in on another computer. Repeat on a published article,
-checking that the public page retains its approved content. Disconnect networking, type, reconnect
-and confirm the pending text is saved. `npm test` covers draft retries, permissions, review locks,
-server restart and approved snapshot isolation with mocked persistence.
-Run `node scripts/verify/features.js autosave` to repeat the live HTTP/MongoDB checks in an isolated
-temporary database, removed afterward. Live verification passed, including reconnecting to persisted
-draft/session data. CRUD and the article workspace redesign (#11) are separate pull requests.
+## 1. Installation and running
 
-## Shared database setup
-
-For the team's MongoDB Atlas database, ask a teammate for `MONGODB_USERNAME`, `MONGODB_PASSWORD`, and the full `MONGODB_URI`, then fill in `.env`. The application connects using the full `MONGODB_URI`.
-
-User accounts already exist in the shared database. Sign in with an existing account; editors can create and manage users through **ניהול משתמשים** (`/editor/users`). There is no user seed command or automatic account creation at startup.
-
-## Install and run
+Requirements: Node.js 20 or newer, and a MongoDB database (the team uses MongoDB Atlas).
 
 ```bash
-npm install
-cp .env.example .env
+npm install                 # install dependencies
+cp .env.example .env        # Windows PowerShell: Copy-Item .env.example .env
 ```
 
-Set `MONGODB_URI` in `.env` to the MongoDB database containing your existing accounts, then start the server.
+Open `.env` and set `MONGODB_URI` (ask a teammate for the team's Atlas connection string).
 
 ```bash
-npm start
+npm start                   # start the server
+npm run dev                 # or: start and restart automatically on code changes
+npm test                    # run the automated tests (no database needed)
 ```
 
-Open http://localhost:3000. `PORT` defaults to `3000`; `MONGODB_DB` defaults to `daily-web`. Use `npm run dev` to restart automatically after code changes.
+Open <http://localhost:3000>.
 
-The existing database articles are preserved; there are no article generation or replacement seed commands. To create or update articles, use the staff workflow in the application. Reporters can draft and submit articles for review, and editors can edit and approve publication. Keep `.env` out of Git.
+| Variable      | Required | Default     | Meaning                                         |
+| ------------- | -------- | ----------- | ----------------------------------------------- |
+| `MONGODB_URI` | yes      |             | MongoDB connection string                       |
+| `MONGODB_DB`  | no       | `daily-web` | Database name                                   |
+| `PORT`        | no       | `3000`      | HTTP port                                       |
+| `NODE_ENV`    | no       |             | `production` makes cookies HTTPS-only           |
 
-## Login and permissions
+### Accounts
 
-Open `/login` and use your existing account's password. Editors can manage accounts and reset passwords through `/editor/users`.
+User accounts already exist in the shared database (there is no seed script). Log in at
+`/login`. Editors can create users and reset passwords at **ניהול משתמשים** (`/editor/users`).
 
-| Role | Usernames | Access |
-| --- | --- | --- |
-| Guest | No login | Public feed, published articles and comments |
-| Reporter | `dana.levi`, `yossi.cohen`, `maya.mizrahi`, `amir.peretz` | `/reporter`: create articles, edit their own articles and submit them for review |
-| Editor | Any existing account with the editor role | `/editor`: view/edit all articles, approve publication, return with a note and delete |
+| Role     | Example usernames                                         | Lands on    |
+| -------- | --------------------------------------------------------- | ----------- |
+| Guest    | (no login)                                                | `/`         |
+| Reporter | `dana.levi`, `yossi.cohen`, `maya.mizrahi`, `amir.peretz` | `/reporter` |
+| Editor   | any account with the `editor` role                        | `/editor`   |
 
-Reporters cannot access another reporter's article or publish/delete content. While an article is pending review, its reporter cannot edit it. These rules are enforced on the server for both pages and API requests. Browser-supplied roles, author IDs and publication fields are rejected.
+---
 
-The workspace provides an article list and an editing form. Draft changes save automatically; submission
-for review is explicit. Editing published content keeps the approved snapshot public until approval.
-Reporter and editor workspaces share the home page's search controls: title searches update after a short typing pause, and status changes apply immediately without reloading. Search and status filters remain active when loading more articles.
+## 2. Project structure
 
-Passwords are stored as salted, one-way `scrypt` hashes using Node's built-in `crypto` module. Login creates a random session token in an HttpOnly, SameSite=Lax cookie; only its SHA-256 hash and expiry are stored in MongoDB. Sessions last seven days and survive a server restart without a server-side secret or in-memory session store. Each request loads the user's current role from MongoDB. Logout deletes the session. Production uses Secure cookies, so set `NODE_ENV=production` when serving over HTTPS.
-
-## Main routes
-
-| Method | Route | Purpose |
-| --- | --- | --- |
-| GET / POST | `/login` | Login form / authenticate |
-| POST | `/logout` | End the current session |
-| GET | `/reporter`, `/editor` | Role-specific workspaces |
-| GET | `/staff/articles/new`, `/staff/articles/:id` | Create / edit form |
-| GET | `/api/staff/articles` | Article summaries, optional `status` and `page` (20 per page) |
-| POST | `/api/staff/articles` | Create an owned draft (reporter) |
-| PATCH | `/api/staff/articles/:id` | Save content (owner or editor) |
-| POST | `/api/staff/articles/:id/submit` | Submit an owned draft/returned article (reporter) |
-| POST | `/api/staff/articles/:id/approve` | Publish a draft, pending or returned article (editor) |
-| POST | `/api/staff/articles/:id/return` | Return a pending article with `{ "note": "..." }` (editor) |
-| DELETE | `/api/staff/articles/:id` | Delete an article and related comments/statistics (editor) |
-
-Create/save requests use JSON fields `title`, `summary`, `body`, `category`, and `imageUrl`. The image URL can be empty: published articles then use the local default image. The editing form does not include image description, credit, source or license inputs. Existing descriptions and attribution are preserved when these optional fields are omitted from a save, and attribution remains visible on published articles. Images without a stored description use the article title as their accessible description. Guests receive `401` for protected API requests and are redirected to login for protected pages. Forbidden operations return `403`, invalid data `400`, missing articles `404`, and invalid workflow transitions `409`. Errors do not stop the server.
-
-## CRUD management
-
-Editors can open **ניהול משתמשים** (`/editor/users`) to create, list/search, edit and delete users.
-Lists are paginated (20 per page), with search by username/name. The old `/editor/data` URL redirects
-to user management. Editors delete comments directly beside each comment on its article page;
-there is no additional comment/statistics management page. Existing REST APIs remain available.
-The existing article workspace supplies article
-CRUD, now with title search for owned drafts as well as the existing public title search.
-
-REST endpoints: GET/POST `/api/admin/users|comments|stats`, GET/PATCH/DELETE
-`/api/admin/:resource/:id`. Article read: GET `/api/staff/articles/:id` with ownership enforcement.
-All admin endpoints require an authenticated editor and reject cross-origin requests.
-Passwords are hashed and never returned. Changing a password invalidates that user's sessions.
-Self-deletion/demotion is blocked. Users with articles cannot be deleted until those articles are
-handled, avoiding orphaned ownership. Comments must reference an existing article.
-
-View statistics creation accepts `{ articleId, dayUtc: 'YYYY-MM-DD', slot, count }`; update accepts
-`{ slot, count }`. Slots are UTC five-minute buckets, 0–287. The UI uses date/time fields. Updating a
-bucket adjusts the daily total atomically, including when visits arrive concurrently. Duplicate
-username or article/day combinations return 409; malformed IDs, dates and input return 400.
-Operational mutations are logged. The moderation endpoints do not expose device identifiers.
-
-`npm test` exercises authenticated HTTP CRUD, role/origin restrictions, hashing, reference checks,
-invalid input and bucket-total correction. Database calls are mocked in the unit suite.
-Run `node scripts/verify/features.js crud` for live HTTP/MongoDB verification in an isolated temporary
-database that is removed afterward; this also passed during implementation. This branch is independent
-of `feature/issue-10-autosave`; merge both for both features.
-
-## Project structure
+The server follows **MVC**. A request always flows the same way:
 
 ```text
-app.js                      Express setup and server startup
-src/config/db.js            MongoDB connection
-src/models/                 Users, sessions, articles, comments and view data
-src/middleware/             Authentication, role checks, device IDs and errors
-src/modules/auth/           Login, logout and persistent sessions
-src/modules/staff/          Reporter/editor pages and protected article operations
-src/modules/public/         Public feed and approved article pages
-src/modules/comments/       Comments and rate limiting
-src/modules/analytics/      View tracking
-src/utils/                  Password hashing, cookies and ObjectId validation
-views/                      Semantic Hebrew/RTL EJS pages and shared layout
-public/css/, public/js/     Responsive styles and vanilla JavaScript/Ajax
-scripts/seed/               Demo public content using existing accounts
-tests/                      Node's built-in test runner
-plan/                       Assignment PDF and team work plan
+browser ──► route ──► middleware (login / role check) ──► controller ──► service ──► model ──► MongoDB
+                                                              │
+                                                              └──► EJS view (HTML)  or  JSON (Ajax)
 ```
 
-The public site includes feed search/filter/sort, infinite scrolling, server-rendered articles, comments, guest comment limits and view tracking. Public routes read only `publishedVersion`, never the working draft.
+* **Routes** list the URLs and which permissions each needs.
+* **Controllers** are thin: read the request, call a service, send HTML or JSON.
+* **Services** contain all the business rules (validation, permissions, workflow).
+* **Models** define the MongoDB collections (Mongoose schemas).
+* **Views** are EJS templates rendered on the server.
 
-## Verification
+```text
+app.js                          Express setup: middleware order, routes, start the server
+.env.example                    Template for the environment variables
 
-```bash
-npm test
+src/
+  config/database.js            Connects to MongoDB
+  models/                       Mongoose schemas (the "M" in MVC)
+    User.js                       reporters and editors (password stored as a hash)
+    Article.js                    workingCopy + publishedVersion + workflow status
+    Comment.js                    reader comments
+    ViewStats.js                  view counts per article per day, in 5-minute buckets
+    ArticleSeen.js                which device already opened which article ("seen" filter)
+    Session.js                    login sessions (kept in MongoDB, survive restarts)
+    CommentRateLimit.js           recent comment times per device (spam limit)
+  routes/                       URL -> middleware -> controller
+    public.routes.js              home, article page, comments (guests)
+    auth.routes.js                login / logout
+    staff.routes.js               reporter and editor workspace + article API
+    analytics.routes.js           Impact Analytics (editors)
+    admin.routes.js               user / comment / stats management (editors)
+    weather.routes.js             weather widget API
+  controllers/                  Request handlers (the "C" in MVC), one per area
+  services/                     Business logic
+    feed.service.js               home feed: search, filters, sorting, infinite scroll
+    article.service.js            loads a published article for the public page
+    articleImage.service.js       placeholder image and generated SVG illustrations
+    comment.service.js            list / create comments
+    commentRateLimit.service.js   max 3 comments per minute per device
+    viewTracking.service.js       counts views, "seen" marks, popularity totals
+    staff.service.js              article workflow: create, autosave, submit, approve, return, delete
+    analytics.service.js          data for the views-over-time graph
+    admin.service.js              CRUD for users, comments and view statistics
+    auth.service.js               login check, sessions
+    weather.service.js            Open-Meteo client with a 14-minute cache
+  middleware/
+    auth.js                       loadUser, requireAuth, requireRole, sameOrigin (CSRF)
+    deviceId.js                   anonymous device cookie for guests
+    errorHandler.js               404 + central error handler (server never crashes)
+  utils/
+    HttpError.js                  error with an HTTP status and a Hebrew message
+    validation.js                 ObjectId / page checks, safe regex search
+    password.js                   scrypt password hashing
+    cookies.js                    reads a cookie from the request
+    logger.js                     logs to the console and to logs/app.log
+
+views/                          EJS templates (the "V" in MVC), Hebrew, right-to-left
+  public/home.ejs                 home page with feed and weather sidebar
+  public/article.ejs              full article (rendered on the server for SEO) + comments
+  auth/login.ejs                  login form
+  staff/workspace.ejs             reporter / editor article list
+  staff/article-editor.ejs        create / edit an article
+  staff/analytics.ejs             Impact Analytics page
+  staff/users.ejs                 user management
+  partials/                       shared header, footer, <head>, comments, weather widget
+  error.ejs                       error page
+
+public/                         Static files sent to the browser as-is
+  css/                            base.css (shared), public.css (site), staff.css (staff area)
+  js/feed.js                      home: search, filters, sort, infinite scroll (Ajax)
+  js/comments.js                  add / load comments without reloading
+  js/workspace.js                 staff article list: search, status filter, load more
+  js/article-editor.js            autosave, workflow buttons, image preview
+  js/analytics.js                 article picker and Chart.js graph
+  js/users.js                     user management table and form
+  js/weather.js                   weather widget
+  images/                         placeholder article image
+
+tests/                          Automated tests (Node's built-in test runner, MongoDB is mocked)
+plan/                           Assignment PDF and the team's work split
 ```
 
-Authentication/permissions tests exercise real HTTP routes with mocked MongoDB operations: wrong credentials, guest access, ownership, forged fields, editor actions, workflow validation, session expiry/logout and a new server instance reusing the persisted session. They do not require a database or change your `.env` database.
+---
 
-To check an actual restart locally: sign in, stop `npm start`, start it again and refresh `/reporter` or `/editor` in the same browser. The MongoDB session and cookie remain valid until logout or expiry.
+## 3. Features
 
-## Reporter task coverage (issue #8)
+### Home page – news feed (`/`)
+* Only **published** articles are shown (the query reads `publishedVersion` only).
+* **Infinite scroll**: 20 more articles load automatically near the bottom of the page
+  (`IntersectionObserver` + `GET /api/articles`).
+* **Search** by title, **filter** by category and seen/unseen, **sort** by publish date or popularity.
+  Everything updates with Ajax, without reloading the page.
+* Each card shows title, image, summary, category, reporter and publish date.
+* Pagination uses a **cursor** (the last article shown), which stays fast with thousands of
+  articles. Popularity sorting saves the ordered list for 10 minutes, so pages don't shuffle
+  while view counts change.
 
-The workspace shows all four workflow states and correction notes, lists only the signed-in reporter's articles, and supports draft creation, editing, submission, corrections/resubmission and editing a published article. The last approved snapshot stays public during draft edits and review. The server rejects another reporter's article, forged privileged fields, incomplete submissions and edits to pending articles.
+### Article page (`/articles/:id`)
+* Title, reporter, category, publish date, main image and the full text.
+* The full article is in the **first HTML response** (EJS), so search engines can read it without JavaScript.
+* Comments: the list plus a form. A new comment appears immediately (Ajax), without reloading the list.
+* **Every visit is counted** as a view for the statistics.
 
-Lists fetch 20 article summaries at a time through `GET /api/staff/articles?page=1`; full bodies load
-only for editing. New and existing drafts save automatically through Ajax under issue #10.
+### Comment limit (spam protection)
+* A guest can post at most **3 comments per minute per device** (a random id in an HttpOnly cookie).
+* The check runs on the server as one atomic MongoDB update, so parallel requests can't bypass
+  it, and it survives a server restart. Exceeding it returns **429** with a Hebrew message.
 
-`npm test` covers ownership, all states, pagination, validation, corrections/resubmission, published snapshot preservation and Hebrew body size limits, with mocked MongoDB operations.
+### Login and permissions
+* Three roles: **guest**, **reporter**, **editor**. Reporters and editors log in with username + password.
+* Passwords are stored as **salted scrypt hashes** (Node's `crypto`); they can't be reversed.
+* Login creates a random token in an **HttpOnly cookie**; only its SHA-256 hash is stored in the
+  `sessions` collection. Sessions are in MongoDB, so **after a server restart users stay logged in**.
+* The role is always read from the database, never from the browser.
+* **Every permission is checked on the server** (`middleware/auth.js` + `staff.service.js`).
+  Guests get 401 (API) or a redirect to `/login`; forbidden actions get 403.
+* Cross-site requests are rejected (`sameOrigin`), and cookies use `SameSite=Lax`.
 
-## Editor task coverage (issue #12)
+### Reporter area (`/reporter`)
+* Shows only the reporter's own articles and their state: בהכנה, ממתינה לאישור עורך, פורסמה, הוחזרה לתיקונים.
+* Create an article, edit own drafts, submit for review, see the editor's note, fix and resubmit,
+  and edit an already published article.
 
-`/editor` lists articles from every reporter and filters by all four workflow states. Filtering and loading the next 20 summaries use Ajax without reloading the page. The same filters work on the server and are validated there. Article list queries omit full bodies and use indexes for author, update time and workflow status.
+### Workflow (article states)
 
-Editors can create articles from their workspace, with drafts automatically saved under their own account. They can read and edit all articles and publish complete drafts, pending articles and returned articles directly, without reporter submission. Editing a published article creates a draft that the editor can publish as the next version. Editors can return pending articles with a required correction note and delete articles with their related comments and view data. Other state transitions and reporter attempts to use editor operations are rejected on the server. The editing page labels the submitted/working content and shows the current approved title, summary, body, category, image and version separately. The public article page continues to show the approved snapshot through editing, submission and return, and switches only after approval. Creation, submission, approval, returns and deletion produce operational logs.
+```text
+new ──► draft ──submit──► pending ──approve──► published
+          ▲                  │                    │
+          │           return + note               │ (edit)
+          │                  ▼                    │
+          │              returned ──submit──► pending
+          └────────────────────────────────────────┘
+```
 
-Tests cover status filters, pagination, transitions, approval, corrections and the published-update
-cycle. Autosave (#10) is included on this branch; CRUD management and weather remain separate tasks.
+* A reporter may only move **their own** article from draft/returned to pending.
+* An editor may approve (publish) or return a pending article with a required note.
+* Any other transition returns **409**. A reporter can't edit while the article is pending.
+
+### Continuous saving (autosave)
+* The editor form saves automatically on every change (`PUT /api/staff/articles/:id`), no Save click needed.
+* A new article's id is generated in the browser, so retries never create duplicates.
+* Until the server confirms, the text is also kept in `localStorage`; it is resent when the
+  network returns. The browser warns before closing with unsaved changes.
+* Reopening the article (after refresh, browser restart or on another computer) loads the
+  latest version from MongoDB.
+
+### Editing a published article
+* Every article stores `workingCopy` (being edited) and `publishedVersion` (what readers see).
+* Edits only change `workingCopy`, so **readers keep seeing the approved version**, even while
+  the edit is pending review. Only approval copies the new content into `publishedVersion`
+  (as version 2, 3, …).
+
+### Editor area (`/editor`)
+* All articles from all reporters, filtered by state and searched by title (Ajax).
+* Read and edit any article, approve and publish, return with a note, delete
+  (also deletes its comments and statistics).
+* For an update to a published article, the editor page shows **the current published version**
+  next to **the new content**.
+
+### Impact Analytics (`/editor/analytics`)
+* Pick a published article and a date range (1–31 days); a **Chart.js** line graph shows views over time.
+* Vertical markers show each moment an editor **published an update** (v1, v2, …), so you can compare
+  views before and after.
+* **Storage design for thousands of readers:** instead of one document per view, there is one
+  `ViewStats` document per article per day with 288 five-minute counters. Each view is a single
+  atomic `$inc`, so simultaneous views are never lost and the collection stays small.
+
+### CRUD for all models
+| Model            | Create / Read (list + search) / Update / Delete                                         |
+| ---------------- | --------------------------------------------------------------------------------------- |
+| Articles         | `/api/staff/articles` (+ editor UI). Search by title.                                   |
+| Users            | `/api/admin/users` + **ניהול משתמשים** page. Search by username/name.                   |
+| Comments         | `/api/admin/comments`, public create; editors delete from the article page.             |
+| View statistics  | `/api/admin/stats`. Search by article id.                                               |
+
+### Weather widget
+* Shown in the home page sidebar, using **Open-Meteo** (free, no API key or credit card).
+* The **server** fetches the weather at most once every 14 minutes and shares the cached result
+  with all users (data is never more than 15 minutes old). If the service fails, the last data
+  is shown, or a friendly message - the rest of the site keeps working.
+
+### Errors, validation, performance and logs
+* All input is validated on the server (and the browser). Invalid data returns **400**, unknown
+  ids **404**, forbidden **403**, wrong workflow step **409**. One central error handler means
+  bad requests never crash the server.
+* Indexes on every list/sort/filter field and cursor pagination keep the site fast with thousands of articles.
+* Errors and important events (logins, create / submit / approve / return / delete, admin changes)
+  are written to the console and to **`logs/app.log`** (ignored by Git).
+
+### Responsive, semantic UI
+* HTML5 semantic tags (`header`, `nav`, `main`, `article`, `section`, `aside`, `footer`, `time`),
+  Hebrew right-to-left layout, and Flexbox/Grid with media queries for desktop, tablet and mobile.
+
+---
+
+## 4. Main routes
+
+| Method | Route | Who | Purpose |
+| --- | --- | --- | --- |
+| GET | `/` | all | Home page |
+| GET | `/api/articles` | all | Feed page (`q`, `category`, `seen`, `sort`, `cursor`) |
+| GET | `/articles/:id` | all | Article page |
+| GET / POST | `/api/articles/:id/comments` | all | List / add comments |
+| GET | `/api/weather` | all | Weather data |
+| GET / POST | `/login` | all | Login form / log in |
+| POST | `/logout` | logged in | Log out |
+| GET | `/reporter`, `/editor` | reporter / editor | Workspaces |
+| GET | `/staff/articles/new`, `/staff/articles/:id` | staff | Editor page |
+| GET / POST | `/api/staff/articles` | staff | List (`status`, `q`, `page`) / create |
+| GET / PUT / PATCH | `/api/staff/articles/:id` | owner or editor | Read / autosave / update |
+| DELETE | `/api/staff/articles/:id` | editor | Delete |
+| POST | `/api/staff/articles/:id/submit` | reporter (owner) | Send for review |
+| POST | `/api/staff/articles/:id/approve` | editor | Publish |
+| POST | `/api/staff/articles/:id/return` | editor | Return with `{ note }` |
+| GET | `/editor/analytics`, `/api/analytics/articles[/:id]` | editor | Impact Analytics |
+| GET | `/editor/users` | editor | User management page |
+| GET / POST | `/api/admin/:resource` | editor | List / create (`users`, `comments`, `stats`) |
+| GET / PATCH / DELETE | `/api/admin/:resource/:id` | editor | Read / update / delete |
+
+---
+
+## 5. Tests
+
+`npm test` runs the tests in `tests/` with Node's built-in runner. MongoDB calls are mocked, so no
+database is needed and your data is never changed. They cover login and sessions (including a
+"server restart"), permissions and ownership, the full workflow, autosave, the published-version
+snapshot, feed search/filter/sort/pagination, comments and the rate limit, analytics, admin CRUD,
+the weather cache, and the browser scripts.
+
+To check a real restart manually: log in, stop the server, start it again and refresh the
+page - you are still logged in.
+
+---
+
+## 6. Team
+
+The work split is in [plan/workplan.md](plan/workplan.md); every feature was developed in its own
+branch and merged into `dev` through a pull request.

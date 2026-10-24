@@ -1,6 +1,18 @@
+/* =====================================================================
+   staff.css - the reporter/editor area: login, workspace (article list),
+   article editor, users management and the analytics dashboard
+   (views/auth/login.ejs and views/staff/*.ejs).
+   Responsive: article cards and the analytics layout use CSS Grid, forms
+   and action rows use Flexbox. Media queries: <= 1000px (tablet analytics),
+   601-900px (2 cards per row), <= 639/600px (mobile, 1 column), <= 480px.
+   ===================================================================== */
+
+/* ===== Staff page container ===== */
 .staff-page { padding-top: 24px; max-width: 900px; }
 .article-workspace { padding-bottom: 48px; }
 .article-workspace > h1 { margin-bottom: 8px; }
+
+/* ===== Workflow status badge in the editor (class workflow-badge--<status> is built in article-editor.ejs) ===== */
 .workflow-badge { display: inline-flex; align-items: center; gap: 8px; width: fit-content; margin: 0 0 20px; padding: 7px 12px; border: 1px solid var(--color-border); border-radius: 999px; color: var(--color-muted); background: var(--color-surface); }
 .workflow-badge > span { width: 8px; height: 8px; border-radius: 50%; background: #8b949e; }
 .workflow-badge--published { border-color: #9bd3c3; background: #effaf6; color: #176b54; }
@@ -9,8 +21,12 @@
 .workflow-badge--pending > span { background: #d89217; }
 .workflow-badge--returned { border-color: #efb0b0; background: #fff3f3; color: #8c3131; }
 .workflow-badge--returned > span { background: #c54b4b; }
+
+/* ===== Editor fieldset highlight ===== */
 .draft-editor-panel { box-shadow: 0 10px 26px rgba(22, 34, 39, .06); }
 .draft-editor-panel:focus-within { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(36, 119, 98, .12); }
+
+/* ===== Login card, staff cards and staff forms (Flexbox column) ===== */
 .login-card { max-width: 420px; margin: 24px auto; }
 .login-card, .staff-card { padding: 20px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); }
 .staff-form, .staff-form fieldset { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
@@ -21,14 +37,20 @@
 .staff-form textarea, .staff-actions textarea { resize: vertical; }
 .staff-form .button { align-self: flex-start; margin-top: 8px; }
 .form-error { color: var(--color-primary-dark); }
+
+/* ===== Article / user lists - Grid: 3 cards per row on desktop ===== */
 .article-list { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: stretch; }
 .article-list > li { min-width: 0; }
 .staff-card h2 { margin-top: 0; overflow-wrap: anywhere; }
+
+/* ===== Workspace article card (views/staff/workspace.ejs) ===== */
 .workspace-card { display: flex; min-height: 352px; height: 100%; flex-direction: column; overflow: hidden; transition: transform 160ms ease, box-shadow 160ms ease; }
 .workspace-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(29, 48, 56, .12); }
 .workspace-card__image { display: block; flex: 0 0 180px; width: calc(100% + 40px); max-width: none; height: 180px; margin: -20px -20px 16px; object-fit: cover; object-position: center; background: #edf2f1; }
 .workspace-card__image--empty { display: grid; place-items: center; color: #6b7d7a; background: linear-gradient(135deg, #e3efeb, #f5f8f7); font-size: 1.05rem; font-weight: 750; letter-spacing: .08em; }
 .workspace-card h2 { min-height: 3.1em; margin-bottom: 10px; }
+
+/* The first <p> of a card is the status line, drawn as a colored pill per data-workflow-status. */
 .workspace-card > p:first-of-type { display: inline-flex; align-self: flex-start; width: fit-content; max-width: 100%; align-items: center; gap: 8px; margin: 2px 0 0; padding: 6px 11px; border: 1px solid var(--color-border); border-radius: 999px; color: var(--color-muted); background: #f8faf9; font-size: .84rem; }
 .workspace-card > p:first-of-type::before { content: ''; width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #8b949e; }
 .workspace-card[data-workflow-status="draft"] > p:first-of-type { border-color: #b8cbe8; background: #f2f6fd; color: #315b91; }
@@ -39,6 +61,8 @@
 .workspace-card[data-workflow-status="published"] > p:first-of-type::before { background: #1d9b72; }
 .workspace-card[data-workflow-status="returned"] > p:first-of-type { border-color: #efb0b0; background: #fff3f3; color: #8c3131; }
 .workspace-card[data-workflow-status="returned"] > p:first-of-type::before { background: #c54b4b; }
+
+/* ===== Editor action buttons, published-version snapshot, image preview ===== */
 .staff-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 24px 0; }
 .approved-snapshot-card { margin-top: 28px; border-color: #a8d8cd; background: linear-gradient(135deg, #f4fcfa, var(--color-surface)); }
 .approved-snapshot-card__body { margin-top: 18px; padding-top: 18px; border-top: 1px solid #cfe8e1; }
@@ -47,29 +71,40 @@
 .article-image-preview { margin: 8px 0 0; padding: 10px; border: 1px dashed var(--color-border); border-radius: var(--radius); background: #fafcfb; }
 .article-image-preview img { width: 100%; max-height: 240px; object-fit: cover; border-radius: 6px; }
 .article-image-preview figcaption { margin-top: 7px; color: var(--color-muted); font-size: .78rem; }
-.staff-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
-.staff-filter select { max-width: 100%; padding: 8px; font: inherit; }
+
+/* ===== Workspace & users filters (extend .feed-controls from public.css) ===== */
 .workspace-page { padding-top: 32px; padding-bottom: 32px; }
 .workspace-controls { grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr); }
 .workspace-controls .field { min-width: 0; }
 .users-controls { grid-template-columns: minmax(0, 1fr) auto auto; align-items: end; }
 .users-controls .field { min-width: 0; }
 .users-controls > .button { min-height: 44px; border-radius: 4px; }
+
+/* Mobile (< 640px): users search on its own row, buttons below it. */
 @media (max-width: 639px) {
   .feed-controls.users-controls { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .users-controls .field { grid-column: 1 / -1; }
 }
+
+/* Workspace status message (aria-live) */
 #workspace-status { min-height: 1.5em; color: var(--color-muted); }
 #workspace-status.form-error { color: var(--color-primary-dark); }
+
+/* Mobile (< 640px): workspace filters in one column. */
 @media (max-width: 639px) {
   .workspace-page { padding-top: 24px; }
   .workspace-controls { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ===== Analytics dashboard (views/staff/analytics.ejs + /js/analytics.js) =====
+   Local CSS variables for the accent colors of this page. */
 .analytics-page { --analytics-accent: #087f8c; --analytics-ink: #252a2c; max-width: 1240px; padding-top: 36px; padding-bottom: 32px; letter-spacing: 0; }
 .analytics-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 26px; }
 .analytics-eyebrow { margin: 0 0 6px; color: var(--color-muted); font-size: 0.8rem; font-weight: 600; }
 .analytics-page h1 { margin: 0; font-size: 2rem; line-height: 1.2; font-weight: 800; border-inline-start: 4px solid var(--color-primary); padding-inline-start: 14px; }
 .analytics-timezone { color: var(--color-muted); font-size: 0.8rem; font-weight: 600; padding: 5px 10px; border: 1px solid var(--color-border); border-radius: 4px; }
+
+/* Filter form - Grid: article search | from | to | button */
 .analytics-filter { display: grid; grid-template-columns: minmax(220px, 1fr) 170px 170px auto; align-items: end; gap: 36px 18px; padding: 22px 24px 42px; background: var(--color-surface); border-block: 1px solid var(--color-border); }
 .analytics-filter > div { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .analytics-filter label { font-size: 0.8rem; font-weight: 600; color: #51575a; }
@@ -78,6 +113,8 @@
 .analytics-filter input::placeholder { color: #858b8e; }
 .analytics-filter input:focus { outline: none; border-color: var(--analytics-accent); box-shadow: 0 0 0 3px #087f8c18; background: #fff; }
 .analytics-filter input[type="date"] { direction: ltr; font-variant-numeric: tabular-nums; }
+
+/* Autocomplete list (role=listbox) under the search input; aria-selected marks the active option. */
 .analytics-suggestions { position: absolute; z-index: 10; inset-inline: 0; top: calc(100% + 22px); margin: 4px 0 0; padding: 5px; max-height: 280px; overflow-y: auto; overscroll-behavior: contain; list-style: none; background: var(--color-surface); border: 1px solid #cfd5d5; border-radius: 6px; box-shadow: 0 8px 24px #252a2c18; }
 .analytics-suggestions li { padding: 11px 12px; cursor: pointer; overflow-wrap: anywhere; border-radius: 3px; font-size: 0.9rem; }
 .analytics-suggestions li + li { border-top: 1px solid #f0f2f2; }
@@ -86,9 +123,13 @@
 .analytics-filter .button { height: 46px; border-radius: 4px; background: var(--analytics-ink); padding-inline: 22px; font-weight: 600; font-size: 0.9rem; white-space: nowrap; }
 .analytics-filter .button:hover:not(:disabled) { background: var(--analytics-accent); }
 .analytics-filter .button:disabled { opacity: 1; background: #e7eaea; color: #7a8285; }
+
+/* Status message + empty state (illustration shown before an article is picked) */
 #analytics-status { margin: 12px 0; font-size: 0.875rem; color: var(--color-primary-dark); }
 #analytics-status:empty { margin: 0; }
 .analytics-empty { display: grid; justify-items: center; align-content: center; min-height: 360px; margin-block: 24px; border-bottom: 1px solid var(--color-border); text-align: center; }
+
+/* :has() hides the empty state once a report is shown or loading (aria-busy). */
 .analytics-page:has(#analytics-result:not([hidden])) .analytics-empty,
 .analytics-page:has(#analytics-filter[aria-busy="true"]) .analytics-empty { display: none; }
 .analytics-empty h2 { margin: 18px 0 4px; font-size: 1.125rem; font-weight: 600; color: #50585b; }
@@ -98,6 +139,8 @@
 .analytics-empty-grid span:nth-child(1) { inset-inline-start: 26px; height: 28px; }
 .analytics-empty-grid span:nth-child(2) { inset-inline-start: 72px; height: 50px; }
 .analytics-empty-grid span:nth-child(3) { inset-inline-start: 118px; height: 68px; }
+
+/* Report heading and totals (Grid) */
 .analytics-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 28px; padding-block: 30px; }
 .analytics-heading h2 { margin: 0; overflow-wrap: anywhere; font-size: 1.35rem; line-height: 1.5; }
 .analytics-totals { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 24px; margin: 0; font-variant-numeric: tabular-nums; }
@@ -105,6 +148,8 @@
 .analytics-totals dt { color: var(--color-muted); font-size: 0.8rem; margin-bottom: 4px; }
 .analytics-totals dd { margin: 0; font-size: 2rem; line-height: 1.25; font-weight: 750; color: var(--analytics-ink); overflow-wrap: anywhere; }
 .analytics-totals > div:first-child dd { color: var(--analytics-accent); }
+
+/* Report body - Grid: chart | publications timeline (230px) */
 .analytics-report-grid { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 28px; padding-block: 24px; border-block: 1px solid var(--color-border); }
 .analytics-figure { min-width: 0; margin: 0; }
 .analytics-chart-heading { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: 12px 20px; margin-bottom: 24px; }
@@ -114,6 +159,8 @@
 .analytics-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 0.75rem; color: #5b6366; padding-top: 3px; }
 .analytics-legend span::before { content: ''; display: inline-block; width: 16px; margin-inline-end: 6px; vertical-align: middle; border-top: 3px solid var(--analytics-accent); }
 .analytics-legend .analytics-event-key::before { border-top: 2px dashed var(--color-primary); }
+
+/* Publications timeline */
 .analytics-history { min-width: 0; border-inline-start: 1px solid var(--color-border); padding-inline-start: 24px; }
 .analytics-publications { list-style: none; margin: 26px 0 0; padding: 0 8px 0 0; max-height: 380px; overflow-y: auto; }
 .analytics-publications li { position: relative; padding: 0 18px 26px 0; border-inline-start: 1px solid #d4dddd; overflow-wrap: anywhere; }
@@ -123,6 +170,9 @@
 .analytics-publications time { display: block; margin-top: 5px; font-size: 0.75rem; color: var(--color-muted); font-variant-numeric: tabular-nums; }
 .analytics-publications .analytics-publication-empty { border: 0; padding: 0; color: var(--color-muted); font-size: 0.85rem; }
 .analytics-publications .analytics-publication-empty::before { display: none; }
+
+/* ===== Responsive staff area =====
+   Tablet (<= 1000px): analytics filters in 2 columns, report sections stacked. */
 @media (max-width: 1000px) {
   .analytics-filter { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .analytics-article-field { grid-column: 1 / -1; }
@@ -132,6 +182,8 @@
   .analytics-report-grid { grid-template-columns: minmax(0, 1fr); }
   .analytics-history { border-inline-start: 0; border-top: 1px solid var(--color-border); padding: 22px 0 0; }
 }
+
+/* Mobile (<= 600px): one card per row, full-width analytics button, smaller chart. */
 @media (max-width: 600px) {
   .article-list { grid-template-columns: 1fr; gap: 14px; }
   .workspace-card__image { height: 160px; }
@@ -146,13 +198,19 @@
   .analytics-totals dd { font-size: 1.75rem; }
   .analytics-chart { height: 280px; }
 }
+
+/* Small tablet (601-900px): two cards per row. */
 @media (min-width: 601px) and (max-width: 900px) {
   .article-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Small phones (<= 480px): tighter cards, full-width action buttons. */
 @media (max-width: 480px) {
   .login-card, .staff-card { padding: 14px; }
   .staff-actions .button { width: 100%; }
 }
+
+/* ===== Autosave status line in the article editor (#staff-status) ===== */
 .save-feedback { display: flex; align-items: center; gap: 7px; min-height: 1.6em; margin: 12px 0 18px; color: #68736e; font-size: .82rem; font-weight: 400; line-height: 1.6; }
 .save-feedback--saved::before { content: '\2713'; color: #5b8071; font-size: .9rem; }
 .save-feedback.form-error { color: var(--color-primary-dark); font-size: .875rem; }

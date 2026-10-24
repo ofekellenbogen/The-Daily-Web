@@ -3,6 +3,7 @@
 // because of bad input or forbidden actions. Express 5 forwards errors from async
 // handlers automatically, so controllers don't need try/catch.
 const HttpError = require('../utils/HttpError');
+const logger = require('../utils/logger');
 
 const DUPLICATE_KEY = 11000;
 
@@ -21,7 +22,7 @@ function errorHandler(err, req, res, next) {
 
   // Unexpected (5xx) errors are logged with their stack trace for the developers.
   if (status >= 500) {
-    console.error(`[error] ${req.method} ${req.originalUrl}`, err);
+    logger.error(`[error] ${req.method} ${req.originalUrl}`, err);
   }
 
   // Our own HttpError messages are written for users. Errors from libraries

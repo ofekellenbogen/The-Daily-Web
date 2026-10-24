@@ -22,6 +22,7 @@ const staffRoutes = require('./src/routes/staff.routes');
 const analyticsRoutes = require('./src/routes/analytics.routes');
 const adminRoutes = require('./src/routes/admin.routes');
 const weatherRoutes = require('./src/routes/weather.routes');
+const logger = require('./src/utils/logger');
 
 const app = express();
 
@@ -68,10 +69,10 @@ if (require.main === module) {
 
   connectDatabase(process.env.MONGODB_URI)
     .then(() => {
-      app.listen(PORT, () => console.log(`[server] listening on http://localhost:${PORT}`));
+      app.listen(PORT, () => logger.info(`[server] listening on http://localhost:${PORT}`));
     })
     .catch((err) => {
-      console.error('[server] failed to start:', err.message);
+      logger.error('[server] failed to start:', err.message);
       process.exitCode = 1;
     });
 }

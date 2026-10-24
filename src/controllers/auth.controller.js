@@ -2,6 +2,7 @@
 const authService = require('../services/auth.service');
 const { readCookie } = require('../utils/cookies');
 const HttpError = require('../utils/HttpError');
+const logger = require('../utils/logger');
 
 // GET /login
 function showLogin(req, res) {
@@ -18,10 +19,12 @@ async function login(req, res) {
     // Remove the old session (if any) so a previous login on this browser can't be reused.
     await authService.deleteSession(readCookie(req, authService.COOKIE_NAME));
     res.cookie(authService.COOKIE_NAME, token, { ...authService.cookieOptions(), maxAge: authService.SESSION_AGE_MS });
+    logger.info(`[auth] ${user.username} logged in`);
     // Reporter -> /reporter, editor -> /editor. 303 makes the browser follow with a GET.
     res.redirect(303, authService.workspacePath(user));
   } catch (err) {
     if (!(err instanceof HttpError)) throw err;
+    logger.info(`[auth] failed login (${err.code})`);
     // Show the form again with the error and the username the user typed.
     res.status(err.status).render('auth/login', {
       title: 'התחברות',

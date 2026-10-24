@@ -21,6 +21,7 @@ const ViewStats = require('../models/ViewStats');
 const HttpError = require('../utils/HttpError');
 const { PAGE_SIZE, isObjectId, isPageNumber, escapeRegex, containsText } = require('../utils/validation');
 const { ARTICLE_IMAGE_PATTERN } = require('./articleImage.service');
+const logger = require('../utils/logger');
 
 const STATUS_LABELS = {
   draft: 'בהכנה',
@@ -170,7 +171,7 @@ async function createArticle(user, input, id) {
   const data = { authorId: user._id, workingCopy: content };
   if (id) data._id = id;
   const article = await Article.create(data);
-  console.info(`[articles] created ${article._id} by ${user._id}`);
+  logger.info(`[articles] created ${article._id} by ${user._id}`);
   return article;
 }
 
@@ -212,7 +213,7 @@ async function saveDraft(id, user, input) {
 async function saveTransition(article, user, action) {
   article.revision += 1;
   await article.save();
-  console.info(`[articles] ${action} ${article._id} by ${user._id}`); // operational log
+  logger.info(`[articles] ${action} ${article._id} by ${user._id}`); // operational log
   return article;
 }
 
@@ -269,7 +270,7 @@ async function deleteArticle(id, user) {
   requireEditor(user);
   const article = await getArticle(id, user);
   await article.deleteOne();
-  console.info(`[articles] deleted ${article._id} by ${user._id}`);
+  logger.info(`[articles] deleted ${article._id} by ${user._id}`);
   await Promise.all([
     Comment.deleteMany({ articleId: article._id }),
     ArticleSeen.deleteMany({ articleId: article._id }),

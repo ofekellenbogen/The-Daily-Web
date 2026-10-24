@@ -1,4 +1,8 @@
 <!DOCTYPE html>
+<%# Public article page. GET /articles/:id -> article.controller.renderArticle.
+    Receives: title, article (published version + categoryLabel, paragraphs, isUpdate...), comments,
+    commentCount, formatDate. The whole article is rendered on the server (SEO, works without JS);
+    /js/comments.js only drives the comments section. %>
 <html lang="he" dir="rtl">
 <head>
   <%- include('../partials/layout/head', { title, description: article.summary }) %>
@@ -25,6 +29,7 @@
             פורסם
             <time datetime="<%= article.firstPublishedAt.toISOString() %>"><%= formatDate(article.firstPublishedAt) %></time>
           </span>
+          <%# "Updated" date is shown only when a newer version was published after the first one. %>
           <% if (article.isUpdate) { %>
             <span>
               עודכן
@@ -36,6 +41,7 @@
 
       <figure class="article__figure">
         <img src="<%= article.imageUrl %>" alt="<%= article.imageAlt %>" width="640" height="360">
+        <%# Image credit / source / license links, only when that data exists. %>
         <% if (article.imageCredit || article.imageSourceUrl || article.imageLicense) { %>
           <figcaption class="article__image-credit">
             <span>תמונת המחשה</span>
@@ -46,6 +52,7 @@
         <% } %>
       </figure>
 
+      <%# Body text split into paragraphs on the server; each one is escaped, so no HTML from the author runs. %>
       <div class="article__body">
         <% for (const paragraph of article.paragraphs) { %>
           <p><%= paragraph %></p>

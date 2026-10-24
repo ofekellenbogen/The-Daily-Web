@@ -1,3 +1,14 @@
+/* =====================================================================
+   public.css - the public news site: home feed (views/public/home.ejs),
+   article page + comments (views/public/article.ejs) and the weather widget.
+   staff/workspace.ejs and staff/users.ejs also load it to reuse the
+   .feed-heading / .feed-controls / .field styles.
+   Responsive: feed cards use Flexbox (flex-wrap), filters and the home
+   layout use CSS Grid. Breakpoints: mobile < 640px, tablet 640-959px,
+   desktop >= 960px; the weather sidebar moves above the feed at <= 900px.
+   ===================================================================== */
+
+/* ===== Feed page & heading ===== */
 .feed {
   padding-top: 32px;
 }
@@ -7,7 +18,7 @@
 .feed-heading h1 { margin: 0; font-size: 1.5rem; font-weight: 750; white-space: nowrap; }
 .feed-heading__rule { flex: 1; height: 1px; background: var(--color-border); }
 
-/* Controls */
+/* ===== Feed filters (Grid: wide search + 3 selects) & form fields ===== */
 .feed-controls {
   display: grid;
   grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
@@ -52,7 +63,8 @@
   outline-offset: 2px;
 }
 
-/* Cards */
+/* ===== Article cards (markup built by /js/feed.js) =====
+   Flexbox + flex-wrap; the number of cards per row is set in the media queries below. */
 .feed-list {
   list-style: none;
   margin: 0;
@@ -154,7 +166,7 @@
   color: var(--color-muted);
 }
 
-/* Status */
+/* ===== Feed status / retry / infinite-scroll sentinel ===== */
 .feed-footer {
   display: flex;
   flex-direction: column;
@@ -173,11 +185,13 @@
   color: var(--color-primary);
 }
 
+/* 1px marker watched by IntersectionObserver in feed.js to load the next page. */
 #feed-sentinel {
   height: 1px;
 }
 
-/* Tablet: two cards per row */
+/* ===== Responsive feed (media queries) ===== */
+/* Tablet (640-959px): two cards per row, filters in 2 columns. */
 @media (min-width: 640px) and (max-width: 959px) {
   .feed-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .feed-list > li {
@@ -186,7 +200,7 @@
   }
 }
 
-/* Desktop: three cards per row */
+/* Desktop (>= 960px): three cards per row. */
 @media (min-width: 960px) {
   .feed-list > li {
     flex-basis: calc(33.333% - 14px);
@@ -194,7 +208,7 @@
   }
 }
 
-/* Mobile */
+/* Mobile (< 640px): one card per row (flex-basis 300px fills the width), search on its own row. */
 @media (max-width: 639px) {
   .feed { padding-top: 24px; }
   .feed-heading h1 { font-size: 1.25rem; }
@@ -212,7 +226,7 @@
   .card__body { padding: 18px; }
 }
 
-/* Article page */
+/* ===== Article page (views/public/article.ejs) ===== */
 .article-page {
   max-width: 820px;
   padding-top: 20px;
@@ -294,7 +308,7 @@
   line-height: 1.8;
 }
 
-/* Comments */
+/* ===== Comments (views/partials/comments.ejs + /js/comments.js) ===== */
 .comments {
   margin-top: 28px;
   padding: 20px 28px;
@@ -382,6 +396,7 @@
   margin-top: 12px;
 }
 
+/* Mobile (< 640px): smaller padding and title on the article page. */
 @media (max-width: 639px) {
   .article__header,
   .article__body,
@@ -395,7 +410,7 @@
   }
 }
 
-/* Home layout: feed + weather sidebar (sidebar sits on the left in RTL) */
+/* ===== Home layout (Grid): feed + 300px weather sidebar; the sidebar sits on the left in RTL ===== */
 .home-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -403,9 +418,11 @@
   align-items: start;
 }
 .home-layout__main { min-width: 0; }
+
+/* sticky: the weather card stays visible while scrolling the feed (desktop). */
 .home-layout__sidebar { position: sticky; top: 16px; }
 
-/* Weather card */
+/* ===== Weather card (views/partials/weather.ejs + /js/weather.js) ===== */
 .weather-card {
   position: relative;
   overflow: hidden;
@@ -418,6 +435,7 @@
 }
 .weather-card > *:not(.weather-card__skyline) { position: relative; z-index: 1; }
 
+/* Card header: city + refresh button */
 .weather-card__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .weather-card__location { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 0.95rem; font-weight: 600; }
 .weather-card__refresh {
@@ -429,6 +447,7 @@
 .weather-card__refresh:disabled { opacity: 0.5; cursor: not-allowed; }
 .weather-card__refresh:focus-visible, .weather-card__retry:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
+/* Loading / current conditions / hi-lo range */
 .weather-card__loading { margin: 40px 0; text-align: center; font-size: 0.9rem; opacity: 0.9; }
 
 .weather-card__current { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
@@ -440,6 +459,7 @@
 .weather-card__range { display: flex; flex-direction: column; gap: 2px; margin: 16px 0 14px; font-size: 0.9rem; }
 .weather-card__hi-lo { display: flex; gap: 14px; font-size: 0.85rem; opacity: 0.95; }
 
+/* Precipitation / wind / humidity - 3 Grid columns */
 .weather-card__stats {
   display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 0 18px; padding: 10px 6px;
   text-align: center; background: rgba(255, 255, 255, 0.14);
@@ -448,6 +468,7 @@
 .weather-card__stats dt { font-size: 0.7rem; opacity: 0.85; }
 .weather-card__stats dd { margin: 2px 0 0; font-size: 0.85rem; font-weight: 600; }
 
+/* Hourly and daily forecast rows (li built by weather.js) - Grid: label | icon | temperature */
 .weather-card__heading { margin: 0 0 6px; font-size: 0.95rem; font-weight: 600; }
 .weather-card__hourly, .weather-card__daily { margin: 0; padding: 0; list-style: none; }
 .weather-card__daily { margin-top: 14px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.25); }
@@ -459,6 +480,7 @@
 .weather-card__row-temps { display: flex; gap: 12px; justify-content: flex-end; min-width: 60px; }
 .weather-card__row-min { opacity: 0.75; }
 
+/* Last update time, cached-data badge, error state */
 .weather-card__updated { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; font-size: 0.72rem; opacity: 0.85; }
 .weather-card__badge { padding: 1px 6px; font-size: 0.68rem; border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 4px; }
 
@@ -468,8 +490,11 @@
   background: #fff; border: 0; border-radius: 6px; cursor: pointer;
 }
 
+/* Decorative skyline pinned to the bottom of the card */
 .weather-card__skyline { position: absolute; inset-inline: 0; bottom: 0; z-index: 0; width: 100%; height: 90px; }
 
+/* ===== Responsive home layout =====
+   <= 900px (tablet/mobile): one column; the weather card moves above the feed (order: -1) and stops being sticky. */
 @media (max-width: 900px) {
   .home-layout { grid-template-columns: 1fr; gap: 24px; }
   .home-layout__sidebar { position: static; order: -1; }

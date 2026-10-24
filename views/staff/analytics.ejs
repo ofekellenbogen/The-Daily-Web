@@ -1,4 +1,8 @@
 <!DOCTYPE html>
+<%# Editor-only analytics dashboard. GET /editor/analytics -> analytics.controller.dashboard
+    (requireAuth + requireRole('editor')). Receives: title.
+    Everything below is an empty shell: /js/analytics.js searches articles (GET /api/analytics/articles),
+    loads view stats for the chosen date range and draws a Chart.js chart (/vendor/chart.js). %>
 <html lang="he" dir="rtl">
 <head>
   <%- include('../partials/layout/head', { title }) %>
@@ -11,6 +15,8 @@
       <div><p class="analytics-eyebrow">מערכת החדשות</p><h1><%= title %></h1></div>
       <span class="analytics-timezone" lang="en" dir="ltr">UTC</span>
     </div>
+    <%# Filter form: article search with an autocomplete list (ARIA combobox/listbox pattern) + UTC date range.
+        The submit button stays disabled until analytics.js knows which article was picked. %>
     <form id="analytics-filter" class="analytics-filter">
       <div class="analytics-article-field">
         <label for="analytics-article">חיפוש כתבה</label>
@@ -24,12 +30,15 @@
       <div><label for="analytics-end">עד תאריך</label><input id="analytics-end" type="date" aria-label="עד תאריך (UTC)" required></div>
       <button id="analytics-submit" class="button" type="submit" disabled>הצגת נתונים</button>
     </form>
+    <%# Loading / error messages for the report, announced by screen readers (aria-live). %>
     <p id="analytics-status" role="status" aria-live="polite"></p>
+    <%# Placeholder shown before an article is chosen. %>
     <div class="analytics-empty">
       <div class="analytics-empty-grid" aria-hidden="true"><span></span><span></span><span></span></div>
       <h2>טרם נבחרה כתבה</h2>
       <p>נתוני צפייה ופרסומים</p>
     </div>
+    <%# The report (totals, chart, publication dates). Hidden until analytics.js receives data. %>
     <section id="analytics-result" aria-labelledby="analytics-title" hidden>
       <div class="analytics-heading">
         <div class="analytics-selected-article"><p class="analytics-eyebrow">הכתבה הנבחרת</p><h2 id="analytics-title"></h2></div>
@@ -44,6 +53,7 @@
             <div><h3>צפיות לאורך זמן</h3><p id="analytics-interval" class="analytics-caption"></p></div>
             <div class="analytics-legend"><span class="analytics-view-key">צפיות</span><span class="analytics-event-key">פרסום גרסה</span></div>
           </figcaption>
+          <%# A canvas is just pixels, so role="img" + aria-label describe the chart to screen readers. %>
           <div class="analytics-chart"><canvas id="analytics-chart" role="img" aria-label="צפיות לאורך זמן ומועדי פרסום" aria-describedby="analytics-interval"></canvas></div>
         </figure>
         <aside class="analytics-history" aria-labelledby="analytics-history-title">
@@ -52,9 +62,11 @@
         </aside>
       </div>
     </section>
+    <%# Shown only when JavaScript is disabled. %>
     <noscript><p>יש להפעיל JavaScript כדי להציג נתוני צפייה.</p></noscript>
   </main>
   <%- include('../partials/layout/footer') %>
+  <%# Chart.js must load before analytics.js; "defer" keeps the scripts in this order. %>
   <script src="/vendor/chart.js" defer></script>
   <script src="/js/analytics.js" defer></script>
 </body>

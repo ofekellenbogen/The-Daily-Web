@@ -1,3 +1,5 @@
+<%# Weather widget partial, included in the sidebar of public/home.ejs. Receives no variables.
+    The markup is an empty shell; /js/weather.js fetches GET /api/weather and fills the ids below. %>
 <section class="weather-card" id="weather-widget" aria-labelledby="weather-card-heading">
   <div class="weather-card__top">
     <h2 class="weather-card__location" id="weather-card-heading">
@@ -9,6 +11,8 @@
     </button>
   </div>
 
+  <%# aria-live: screen readers announce loading -> data / error changes made by weather.js.
+      Three states toggled with "hidden": loading, details, error. %>
   <div class="weather-card__body" aria-live="polite">
     <p class="weather-card__loading" id="weather-loading">טוען נתוני מזג אוויר...</p>
 
@@ -35,6 +39,7 @@
         <div><dt>לחות</dt><dd id="weather-humidity">--</dd></div>
       </dl>
 
+      <%# Hourly and daily forecast lists are built by weather.js. %>
       <h3 class="weather-card__heading">היום</h3>
       <ul class="weather-card__hourly" id="weather-hourly"></ul>
 
@@ -52,6 +57,7 @@
     </div>
   </div>
 
+  <%# Decorative city skyline (aria-hidden, ignored by screen readers). %>
   <svg class="weather-card__skyline" viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true">
     <path fill="#1f3b57" fill-opacity=".85" d="M0 70V52h14V40h10v12h8V30h8V18h6v12h6v14h12V36h10v16h8V44h14V26h8V12h4v14h8v22h10V38h12v14h10V46h14V32h10V20h4v12h10v18h12V42h14v10h12V36h10V24h8v14h10v14h12V44h12v26z"/>
     <path fill="#0f2236" fill-opacity=".9" d="M0 70V58h20V50h12v8h16V54h18V46h10v12h22V52h16V44h12v14h20V54h18V48h14v10h22V50h18V42h10v16h20V56h16v14z"/>

@@ -1,4 +1,8 @@
 <!DOCTYPE html>
+<%# Public home page (news feed). GET / -> feed.controller.renderHome.
+    Receives: title, categories (value -> Hebrew label, for the filter).
+    The article cards are NOT rendered here: /js/feed.js calls GET /api/articles and appends them
+    (infinite scroll). /js/weather.js fills the weather widget in the sidebar. %>
 <html lang="he" dir="rtl">
 <head>
   <%- include('../partials/layout/head', { title }) %>
@@ -8,58 +12,64 @@
   <%- include('../partials/layout/header') %>
 
   <main class="container feed" id="main">
+    <%# Two columns on desktop (feed + weather sidebar), one column on mobile - see .home-layout in public.css. %>
     <div class="home-layout">
       <div class="home-layout__main">
-    <div class="feed-heading">
-      <h1>החדשות האחרונות</h1>
-      <span class="feed-heading__rule" aria-hidden="true"></span>
-    </div>
+        <div class="feed-heading">
+          <h1>החדשות האחרונות</h1>
+          <span class="feed-heading__rule" aria-hidden="true"></span>
+        </div>
 
-    <form class="feed-controls" id="feed-controls" role="search" novalidate>
-      <div class="field field--search">
-        <label for="feed-q">חיפוש</label>
-        <input type="search" id="feed-q" name="q" maxlength="100" placeholder="חיפוש לפי כותרת..." autocomplete="off">
-      </div>
+        <%# Search / category / seen / sort filters. No submit button: feed.js reloads the feed on every change. %>
+        <form class="feed-controls" id="feed-controls" role="search" novalidate>
+          <div class="field field--search">
+            <label for="feed-q">חיפוש</label>
+            <input type="search" id="feed-q" name="q" maxlength="100" placeholder="חיפוש לפי כותרת..." autocomplete="off">
+          </div>
 
-      <div class="field">
-        <label for="feed-category">קטגוריה</label>
-        <select id="feed-category" name="category">
-          <option value="">כל הקטגוריות</option>
-          <% for (const [value, label] of Object.entries(categories)) { %>
-            <option value="<%= value %>"><%= label %></option>
-          <% } %>
-        </select>
-      </div>
+          <div class="field">
+            <label for="feed-category">קטגוריה</label>
+            <select id="feed-category" name="category">
+              <option value="">כל הקטגוריות</option>
+              <% for (const [value, label] of Object.entries(categories)) { %>
+                <option value="<%= value %>"><%= label %></option>
+              <% } %>
+            </select>
+          </div>
 
-      <div class="field">
-        <label for="feed-seen">הצג</label>
-        <select id="feed-seen" name="seen">
-          <option value="all">הכל</option>
-          <option value="unseen">כתבות שלא צפיתי בהן</option>
-          <option value="seen">כתבות שצפיתי בהן</option>
-        </select>
-      </div>
+          <div class="field">
+            <label for="feed-seen">הצג</label>
+            <select id="feed-seen" name="seen">
+              <option value="all">הכל</option>
+              <option value="unseen">כתבות שלא צפיתי בהן</option>
+              <option value="seen">כתבות שצפיתי בהן</option>
+            </select>
+          </div>
 
-      <div class="field">
-        <label for="feed-sort">מיון</label>
-        <select id="feed-sort" name="sort">
-          <option value="date">תאריך פרסום</option>
-          <option value="popularity">פופולריות</option>
-        </select>
-      </div>
-    </form>
+          <div class="field">
+            <label for="feed-sort">מיון</label>
+            <select id="feed-sort" name="sort">
+              <option value="date">תאריך פרסום</option>
+              <option value="popularity">פופולריות</option>
+            </select>
+          </div>
+        </form>
 
-    <ol class="feed-list" id="feed-list" aria-label="כתבות"></ol>
+        <%# Empty list - feed.js fills it with article cards. %>
+        <ol class="feed-list" id="feed-list" aria-label="כתבות"></ol>
 
-    <div class="feed-footer">
-      <p class="feed-status" id="feed-status" role="status" aria-live="polite"></p>
-      <button type="button" class="button" id="feed-retry" hidden>נסו שוב</button>
-    </div>
-    <div id="feed-sentinel" aria-hidden="true"></div>
+        <%# Loading / end-of-feed / error messages are announced via aria-live; "retry" appears after a failed load. %>
+        <div class="feed-footer">
+          <p class="feed-status" id="feed-status" role="status" aria-live="polite"></p>
+          <button type="button" class="button" id="feed-retry" hidden>נסו שוב</button>
+        </div>
+        <%# Invisible marker at the end of the list: when it scrolls into view (IntersectionObserver), the next page loads. %>
+        <div id="feed-sentinel" aria-hidden="true"></div>
 
-    <noscript>
-      <p class="feed-status">כדי לצפות בפיד החדשות יש להפעיל JavaScript בדפדפן.</p>
-    </noscript>
+        <%# Shown only when JavaScript is disabled. %>
+        <noscript>
+          <p class="feed-status">כדי לצפות בפיד החדשות יש להפעיל JavaScript בדפדפן.</p>
+        </noscript>
       </div>
 
       <aside class="home-layout__sidebar" aria-label="מזג אוויר">
