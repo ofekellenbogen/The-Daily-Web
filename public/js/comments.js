@@ -47,8 +47,37 @@
     body.textContent = comment.body;
 
     item.append(meta, body);
+    if (section.dataset.canModerate === 'true') {
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'button button--secondary';
+      remove.dataset.deleteComment = comment.id;
+      remove.textContent = 'מחיקת תגובה';
+      item.append(remove);
+    }
     return item;
   }
+
+  list.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-delete-comment]');
+    if (!button || section.dataset.canModerate !== 'true' || button.disabled) return;
+    if (!confirm('למחוק את התגובה?')) return;
+    button.disabled = true;
+    try {
+      const response = await fetch('/api/admin/comments/' + encodeURIComponent(button.dataset.deleteComment), {
+        method: 'DELETE', headers: { Accept: 'application/json' }
+      });
+      if (!response.ok) await readJson(response);
+      button.closest('.comment').remove();
+      const count = Math.max(0, Number(countText.textContent) - 1);
+      countText.textContent = String(count);
+      emptyText.hidden = count !== 0;
+      setStatus('התגובה נמחקה.');
+    } catch (error) {
+      setStatus(error.message, true);
+      button.disabled = false;
+    }
+  });
 
   async function readJson(response) {
     const body = await response.json().catch(() => null);

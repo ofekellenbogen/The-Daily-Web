@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Article = require('../../models/Article');
 const { HttpError } = require('../../middleware/errors');
 const viewsAdapter = require('./views.adapter');
+const { getArticleMedia } = require('./article-media');
 
 const { CATEGORIES } = Article;
 
@@ -22,6 +23,11 @@ const CARD_FIELDS = [
   'publishedVersion.summary',
   'publishedVersion.category',
   'publishedVersion.imageUrl',
+  'publishedVersion.imageAlt',
+  'publishedVersion.imageCredit',
+  'publishedVersion.imageSourceUrl',
+  'publishedVersion.imageLicense',
+  'publishedVersion.imageLicenseUrl',
   'publishedVersion.publishedAt'
 ].join(' ');
 
@@ -179,11 +185,13 @@ async function getPopularityPage(filter, params, deviceId) {
 
 function toCard(doc) {
   const version = doc.publishedVersion;
+  const media = getArticleMedia(version);
   return {
     id: String(doc._id),
     title: version.title,
     summary: version.summary,
-    imageUrl: version.imageUrl,
+    imageUrl: media.imageUrl,
+    imageAlt: media.imageAlt,
     category: version.category,
     categoryLabel: CATEGORIES[version.category] || version.category,
     authorName: doc.authorId ? doc.authorId.displayName : 'מערכת החדשות',

@@ -1,4 +1,5 @@
 const articleService = require('./article.service');
+const { renderArticleIllustration } = require('./article-media');
 const commentsService = require('../comments/comments.service');
 const viewsAdapter = require('./views.adapter');
 
@@ -33,4 +34,10 @@ async function renderArticle(req, res) {
   });
 }
 
-module.exports = { renderArticle };
+async function renderArticleImage(req, res) {
+  const article = await articleService.getPublicArticle(req.params.id);
+  res.type('image/svg+xml').set('Cache-Control', 'public, max-age=31536000, immutable')
+    .send(renderArticleIllustration(article));
+}
+
+module.exports = { renderArticle, renderArticleImage };

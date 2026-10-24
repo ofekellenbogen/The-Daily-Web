@@ -17,7 +17,11 @@ const users = [];
 const sessions = new Map();
 const articles = new Map();
 const password = 'test-password-123';
-const content = { title: 'Test article', summary: 'Summary', body: 'Article body', category: 'tech', imageUrl: '' };
+const content = {
+  title: 'Test article', summary: 'Summary', body: 'Article body', category: 'tech',
+  imageUrl: 'https://example.com/test.jpg', imageAlt: 'Technology illustration',
+  imageCredit: '', imageSourceUrl: '', imageLicense: '', imageLicenseUrl: ''
+};
 let server;
 let baseUrl;
 
@@ -101,7 +105,8 @@ before(async () => {
       async lean() {
         return [...articles.values()]
           .filter((article) => (!filter.authorId || String(article.authorId) === String(filter.authorId)) &&
-            (!filter.workflowStatus || article.workflowStatus === filter.workflowStatus))
+            (!filter.workflowStatus || article.workflowStatus === filter.workflowStatus) &&
+            (!filter['workingCopy.title'] || new RegExp(filter['workingCopy.title'].$regex, filter['workingCopy.title'].$options).test(article.workingCopy.title)))
           .slice(offset, offset + limit)
           .map((article) => ({
             ...(projection ? {
@@ -126,6 +131,39 @@ beforeEach(() => {
 after(async () => {
   await stopServer();
   mock.restoreAll();
+});
+
+test('autosave creates one durable draft, resumes after restart and enforces ownership/review locks', async () => {
+  const cookie = await login();
+  const id = String(new Article()._id);
+  const url = `/api/staff/drafts/${id}`;
+  assert.equal((await request(url, { method: 'PUT', body: content })).status, 401);
+  for (const title of ['', 'First autosave', 'Latest autosave']) {
+    const response = await request(url, { method: 'PUT', cookie, body: { ...content, title } });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).id, id);
+  }
+  assert.equal(articles.size, 1);
+  await stopServer();
+  await startServer(app);
+  assert.match(await (await request(`/staff/articles/${id}`, { cookie })).text(), /Latest autosave/);
+  const other = await login('other');
+  assert.equal((await request(url, { method: 'PUT', cookie: other, body: content })).status, 403);
+  articles.get(id).workflowStatus = 'pending';
+  assert.equal((await request(url, { method: 'PUT', cookie, body: content })).status, 409);
+  assert.equal((await request('/api/staff/drafts/invalid', { method: 'PUT', cookie, body: content })).status, 400);
+  assert.equal((await request(url, { method: 'PUT', cookie, body: content, headers: { Origin: 'https://other.example' } })).status, 403);
+});
+
+test('autosaving a published update never changes the approved snapshot', async () => {
+  const cookie = await login();
+  const article = storeArticle({ authorId: users[0]._id, workingCopy: content, workflowStatus: 'published',
+    publishedVersion: { ...content, version: 1, publishedAt: new Date() } });
+  const response = await request(`/api/staff/drafts/${article._id}`, { method: 'PUT', cookie, body: { ...content, body: 'Autosaved revision' } });
+  assert.equal(response.status, 200);
+  assert.equal(article.workingCopy.body, 'Autosaved revision');
+  assert.equal(article.publishedVersion.body, content.body);
+  assert.equal(article.workflowStatus, 'draft');
 });
 
 test('passwords use salted one-way hashes and reject wrong or placeholder hashes', async () => {
@@ -247,6 +285,48 @@ test('guests can read public pages but cannot access staff pages or any staff mu
   }
 });
 
+test('guests can load the generated article illustration endpoint', async () => {
+  const article = storeArticle({ authorId: users[0]._id, workingCopy: content,
+    publishedVersion: { ...content, version: 1, publishedAt: new Date() } });
+  const response = await request(`/article-images/${article._id}.svg`);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /image\/svg\+xml/);
+  assert.match(response.headers.get('cache-control'), /immutable/);
+  const svg = await response.text();
+  assert.match(svg, /Test article/);
+  assert.match(svg, /Summary/);
+});
+
+test('editors can create owned articles through both creation endpoints and publish them', async () => {
+  const cookie = await login('editor');
+  const workspace = await (await request('/editor', { cookie })).text();
+  assert.match(workspace, /href="\/staff\/articles\/new"/);
+  const page = await request('/staff/articles/new', { cookie });
+  assert.equal(page.status, 200);
+  const html = await page.text();
+  assert.match(html, /data-action="approve"/);
+  assert.doesNotMatch(html, /data-action="delete"|data-action="submit"/);
+  const input = { title: 'Editor authored article', summary: 'Summary',
+    body: 'Editor content', category: 'tech', imageUrl: '' };
+  const created = await request('/api/staff/articles', { method: 'POST', cookie, body: input });
+  assert.equal(created.status, 201);
+  const { id } = await created.json();
+  assert.equal(String(articles.get(id).authorId), String(users[2]._id));
+  const draftId = String(new Article()._id);
+  const draftInput = { ...input, title: 'Editor autosaved article' };
+  assert.equal((await request(`/api/staff/drafts/${draftId}`, {
+    method: 'PUT', cookie, body: draftInput
+  })).status, 200);
+  assert.equal(String(articles.get(draftId).authorId), String(users[2]._id));
+  assert.equal((await request(`/api/staff/articles/${draftId}/approve`, {
+    method: 'POST', cookie
+  })).status, 200);
+  assert.equal(articles.get(draftId).workflowStatus, 'published');
+  assert.equal((await request('/api/staff/articles', {
+    method: 'POST', cookie, body: { ...input, authorId: String(users[0]._id) }
+  })).status, 400);
+});
+
 test('reporters create owned drafts and cannot forge authors, roles or publication fields', async () => {
   const cookie = await login();
   const created = await request('/api/staff/articles', { method: 'POST', cookie, body: content });
@@ -287,7 +367,7 @@ test('reporter submits; editor edits, returns with a note, approves and deletes 
   const editorCookie = await login('editor');
   const article = storeArticle({ authorId: users[0]._id, workingCopy: content });
   const path = `/api/staff/articles/${article._id}`;
-  assert.equal((await request(`${path}/approve`, { method: 'POST', cookie: editorCookie })).status, 409);
+  assert.equal((await request(`${path}/return`, { method: 'POST', cookie: editorCookie, body: { note: 'Add source' } })).status, 409);
   assert.equal((await request(`${path}/submit`, { method: 'POST', cookie: reporterCookie })).status, 200);
   assert.equal((await request(path, { method: 'PATCH', cookie: reporterCookie, body: content })).status, 409);
   assert.equal((await request(`/staff/articles/${article._id}`, { cookie: editorCookie })).status, 200);
@@ -327,6 +407,9 @@ test('invalid IDs, content and cross-origin requests return errors and leave the
   for (const body of [{}, { ...content, category: 'invalid' }, { ...content, imageUrl: 'javascript:alert(1)' }, { ...content, title: { $gt: '' } }]) {
     assert.equal((await request(`/api/staff/articles/${article._id}`, { method: 'PATCH', cookie, body })).status, 400);
   }
+  assert.equal((await request(`/api/staff/articles/${article._id}`, {
+    method: 'PATCH', cookie, body: { ...content, imageUrl: `/article-images/${article._id}.svg` }
+  })).status, 200);
   for (const path of ['/login', '/logout', `/api/staff/articles/${article._id}/submit`]) {
     assert.equal((await request(path, { method: 'POST', cookie, body: { username: 'reporter', password }, headers: { Origin: 'https://other.example' } })).status, 403);
   }
@@ -392,6 +475,25 @@ test('list validation and browser-supplied author filters cannot bypass ownershi
     assert.equal((await request(`/api/staff/articles?${query}`, { cookie })).status, 400);
   }
   assert.equal((await request('/api/staff/articles')).status, 401);
+});
+
+test('both workspaces render home-style controls and search literal titles within server permissions', async () => {
+  storeArticle({ authorId: users[0]._id, workingCopy: { ...content, title: 'News .* match' }, workflowStatus: 'returned' });
+  storeArticle({ authorId: users[1]._id, workingCopy: { ...content, title: 'Other news .* match' }, workflowStatus: 'returned' });
+  storeArticle({ authorId: users[0]._id, workingCopy: { ...content, title: 'News other match' }, workflowStatus: 'returned' });
+  storeArticle({ authorId: users[0]._id, workingCopy: { ...content, title: 'Draft news .* match' } });
+  for (const role of ['reporter', 'editor']) {
+    const cookie = await login(role);
+    const page = await (await request(`/${role}?q=.%2A&status=returned`, { cookie })).text();
+    assert.match(page, /class="feed-controls workspace-controls"/);
+    assert.match(page, /type="search"[^>]*name="q"/);
+    assert.match(page, /value="\.\*"/);
+    const response = await request('/api/staff/articles?q=.%2A&status=returned', { cookie });
+    assert.equal(response.status, 200);
+    const data = await response.json();
+    assert.equal(data.articles.length, role === 'editor' ? 2 : 1);
+    assert.ok(data.articles.every(article => article.workingCopy.title.includes('.*') && article.workflowStatus === 'returned'));
+  }
 });
 
 test('reporter submits complete drafts and corrections, but incomplete or pending submissions fail', async () => {
@@ -466,11 +568,11 @@ test('editor lists all authors, filters each status and pages filtered results',
   assert.equal((await request('/editor?status=invalid', { cookie })).status, 400);
 });
 
-test('editor publication requires complete pending content and valid state transitions', async () => {
+test('editor publication requires complete content and valid state transitions', async () => {
   const cookie = await login('editor');
   for (const state of ['draft', 'returned', 'published']) {
     const article = storeArticle({ authorId: users[0]._id, workingCopy: content, workflowStatus: state });
-    for (const action of ['approve', 'return']) {
+    for (const action of state === 'published' ? ['approve', 'return'] : ['return']) {
       assert.equal((await request(`/api/staff/articles/${article._id}/${action}`, {
         method: 'POST', cookie, body: { note: 'Fix sources' }
       })).status, 409);
@@ -490,6 +592,109 @@ test('editor publication requires complete pending content and valid state trans
   assert.equal(article.publicationHistory.length, 1);
   assert.equal((await request(`${path}/approve`, { method: 'POST', cookie })).status, 409);
   assert.equal(article.publicationHistory.length, 1);
+});
+
+test('articles can be submitted and published without an image or description', async () => {
+  const cookie = await login('editor');
+  const reporterCookie = await login();
+  for (const imageUrl of ['', 'https://example.com/article.jpg']) {
+    const article = storeArticle({
+      authorId: users[0]._id,
+      workingCopy: { ...content, imageUrl, imageAlt: '' },
+      workflowStatus: 'draft'
+    });
+    const input = { title: `Optional image ${imageUrl}`, summary: content.summary,
+      body: content.body, category: content.category, imageUrl };
+    assert.equal((await request(`/api/staff/drafts/${article._id}`, {
+      method: 'PUT', cookie: reporterCookie, body: input
+    })).status, 200);
+    assert.equal((await request(`/api/staff/articles/${article._id}/submit`, {
+      method: 'POST', cookie: reporterCookie
+    })).status, 200);
+    assert.equal((await request(`/api/staff/articles/${article._id}/approve`, { method: 'POST', cookie })).status, 200);
+    assert.equal(article.workflowStatus, 'published');
+    const html = await (await request(`/articles/${article._id}`)).text();
+    assert.ok(html.includes(`src="${imageUrl || '/images/article-placeholder.svg'}"`));
+    if (imageUrl) assert.ok(html.includes(`alt="${input.title}"`));
+  }
+  assert.equal((await request('/images/article-placeholder.svg')).status, 200);
+});
+
+test('editors save and publish drafts, returned articles and published updates without reporter submission', async () => {
+  const cookie = await login('editor');
+  const reporterCookie = await login();
+  for (const state of ['draft', 'returned', 'published']) {
+    const publishedAt = new Date();
+    const wasPublished = state === 'published';
+    const article = storeArticle({ authorId: users[0]._id, workingCopy: content, workflowStatus: state,
+      editorNote: state === 'returned' ? 'Add sources' : '',
+      ...(wasPublished ? {
+        publishedVersion: { ...content, version: 1, publishedAt },
+        publicationHistory: [{ version: 1, publishedAt, editorId: users[2]._id }]
+      } : {}) });
+    const path = `/api/staff/articles/${article._id}`;
+    const update = { ...content, title: `Editor revision of ${state}`, body: 'Edited by the editor' };
+    // Incomplete drafts cannot be published, including outside the reporter review flow.
+    assert.equal((await request(`/api/staff/drafts/${article._id}`, {
+      method: 'PUT', cookie, body: { ...update, body: '' }
+    })).status, 200);
+    assert.equal((await request(`${path}/approve`, { method: 'POST', cookie })).status, 400);
+    assert.equal(article.publicationHistory.length, wasPublished ? 1 : 0);
+    assert.equal((await request(`/api/staff/drafts/${article._id}`, {
+      method: 'PUT', cookie, body: update
+    })).status, 200);
+    assert.equal(article.workflowStatus, state === 'returned' ? 'returned' : 'draft');
+    assert.equal(article.publishedVersion?.title || null, wasPublished ? content.title : null);
+    const page = await (await request(`/staff/articles/${article._id}`, { cookie })).text();
+    assert.match(page, /data-action="approve"\s*>/);
+    assert.doesNotMatch(page, /data-action="return"/);
+    assert.equal((await request(`${path}/approve`, { method: 'POST', cookie: reporterCookie })).status, 403);
+    assert.equal((await request(`${path}/approve`, { method: 'POST', cookie })).status, 200);
+    assert.equal(article.workflowStatus, 'published');
+    assert.equal(article.publishedVersion.title, update.title);
+    assert.equal(article.publishedVersion.body, update.body);
+    assert.equal(article.publishedVersion.version, wasPublished ? 2 : 1);
+    assert.equal(article.publicationHistory.length, wasPublished ? 2 : 1);
+    assert.equal(String(article.publicationHistory.at(-1).editorId), String(users[2]._id));
+    assert.equal(String(article.authorId), String(users[0]._id));
+    assert.equal(article.editorNote, '');
+    assert.match(await (await request(`/articles/${article._id}`)).text(), new RegExp(update.title));
+    assert.equal((await request(`${path}/approve`, { method: 'POST', cookie })).status, 409);
+  }
+});
+
+test('editing without attribution inputs preserves credits through autosave and publication', async () => {
+  const cookie = await login('editor');
+  const attribution = {
+    imageCredit: 'Original creator', imageSourceUrl: 'https://example.com/source',
+    imageLicense: 'CC BY 4.0', imageLicenseUrl: 'https://creativecommons.org/licenses/by/4.0/'
+  };
+  const article = storeArticle({
+    authorId: users[0]._id, workingCopy: { ...content, ...attribution },
+    workflowStatus: 'published',
+    publishedVersion: { ...content, ...attribution, version: 1, publishedAt: new Date() }
+  });
+  const html = await (await request(`/staff/articles/${article._id}`, { cookie })).text();
+  for (const field of Object.keys(attribution)) assert.ok(!html.includes(`name="${field}"`));
+  assert.match(html, /name="imageUrl"/);
+  assert.doesNotMatch(html, /name="imageAlt"/);
+  const input = { ...content, title: 'Updated article' };
+  for (const field of Object.keys(attribution)) delete input[field];
+  assert.equal((await request(`/api/staff/drafts/${article._id}`, {
+    method: 'PUT', cookie, body: input
+  })).status, 200);
+  for (const [field, value] of Object.entries(attribution)) {
+    assert.equal(article.workingCopy[field], value);
+    assert.equal(article.publishedVersion[field], value);
+  }
+  assert.equal((await request(`/api/staff/articles/${article._id}/approve`, {
+    method: 'POST', cookie
+  })).status, 200);
+  const published = await (await request(`/articles/${article._id}`)).text();
+  for (const [field, value] of Object.entries(attribution)) {
+    assert.equal(article.publishedVersion[field], value);
+    assert.ok(published.includes(value));
+  }
 });
 
 test('editor sees published and submitted versions while the public sees only approved content', async () => {
@@ -528,4 +733,24 @@ test('editor sees published and submitted versions while the public sees only ap
   assert.equal(article.publicationHistory.length, 2);
   assert.equal((await request(path, { method: 'DELETE', cookie: editorCookie })).status, 204);
   assert.equal((await request(publicPath)).status, 404);
+});
+
+test('published snapshot endpoint returns approved content after approval and enforces ownership', async () => {
+  const reporterCookie = await login();
+  const editorCookie = await login('editor');
+  const article = storeArticle({ authorId: users[0]._id, workingCopy: content, workflowStatus: 'pending' });
+  const url = `/api/staff/articles/${article._id}/published`;
+  assert.equal((await request(url)).status, 401);
+  const otherCookie = await login('other');
+  assert.equal((await request(url, { cookie: otherCookie })).status, 403);
+  assert.equal((await (await request(url, { cookie: editorCookie })).json()).data, null);
+  assert.equal((await request(`/api/staff/articles/${article._id}/approve`, { method: 'POST', cookie: editorCookie })).status, 200);
+  const response = await request(url, { cookie: editorCookie });
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  const { data } = await response.json();
+  assert.equal(data.title, content.title);
+  assert.equal(data.version, 1);
+  assert.equal(data.categoryLabel, Article.CATEGORIES.tech);
+  await request(`/api/staff/articles/${article._id}`, { method: 'PATCH', cookie: reporterCookie, body: { ...content, title: 'Private new title' } });
+  assert.equal((await (await request(url, { cookie: editorCookie })).json()).data.title, content.title);
 });

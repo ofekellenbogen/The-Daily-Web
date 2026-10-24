@@ -4,6 +4,7 @@ const ArticleSeen = require('../../models/ArticleSeen');
 const ViewStats = require('../../models/ViewStats');
 const { HttpError } = require('../../middleware/errors');
 const { isObjectId } = require('../../utils/objectId');
+const { ARTICLE_IMAGE_PATTERN } = require('../../utils/articleImage');
 
 const STATUS_LABELS = { draft: 'בהכנה', pending: 'ממתינה לאישור עורך', published: 'פורסמה', returned: 'הוחזרה לתיקונים' };
 
@@ -15,12 +16,22 @@ async function listArticles(user, query = {}) {
     throw new HttpError(400, 'INVALID_FILTER', 'מצב הכתבה או מספר העמוד אינם תקינים');
   }
   if (status) filter.workflowStatus = status;
+  if (query.q !== undefined) {
+    if (typeof query.q !== 'string' || query.q.length > 100) throw new HttpError(400, 'INVALID_SEARCH', 'חיפוש לא תקין');
+    if (query.q.trim()) filter['workingCopy.title'] = { $regex: query.q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+  }
   const pageNumber = Number(page);
   const articles = await Article.find(filter)
-    .select('authorId workingCopy.title workflowStatus editorNote')
+    .select('authorId workingCopy.title workingCopy.summary workingCopy.category workingCopy.imageUrl workingCopy.imageAlt publishedVersion.title publishedVersion.imageUrl publishedVersion.imageAlt workflowStatus editorNote')
     .sort({ updatedAt: -1, _id: -1 }).skip((pageNumber - 1) * 20).limit(21)
     .populate('authorId', 'displayName').lean();
-  return { articles: articles.slice(0, 20), nextPage: articles.length > 20 ? pageNumber + 1 : null };
+  const pageArticles = articles.slice(0, 20).map((article) => ({
+    ...article,
+    imageUrl: article.workingCopy?.imageUrl || article.publishedVersion?.imageUrl || '',
+    imageAlt: article.workingCopy?.imageAlt || article.publishedVersion?.imageAlt ||
+      article.workingCopy?.title || article.publishedVersion?.title || ''
+  }));
+  return { articles: pageArticles, nextPage: articles.length > 20 ? pageNumber + 1 : null };
 }
 
 async function getArticle(id, user) {
@@ -33,14 +44,22 @@ async function getArticle(id, user) {
   return article;
 }
 
-function parseContent(input) {
-  const limits = { title: 200, summary: 1000, body: 50000, category: 30, imageUrl: 2000 };
+function parseContent(input, existingContent = {}) {
+  const limits = {
+    title: 200, summary: 1000, body: 50000, category: 30, imageUrl: 2000, imageAlt: 250,
+    imageCredit: 250, imageSourceUrl: 2000, imageLicense: 100, imageLicenseUrl: 2000
+  };
   if (!input || typeof input !== 'object' || Array.isArray(input) ||
       Object.keys(input).some((key) => !Object.hasOwn(limits, key))) {
     throw new HttpError(400, 'INVALID_CONTENT', 'יש לשלוח שדות תוכן בלבד');
   }
   const content = {};
+  const optionalFields = ['imageAlt', 'imageCredit', 'imageSourceUrl', 'imageLicense', 'imageLicenseUrl'];
   for (const [key, limit] of Object.entries(limits)) {
+    if (input[key] === undefined && optionalFields.includes(key)) {
+      content[key] = existingContent[key] || '';
+      continue;
+    }
     if (typeof input[key] !== 'string' || input[key].length > limit) {
       throw new HttpError(400, 'INVALID_CONTENT', 'תוכן הכתבה אינו תקין');
     }
@@ -49,14 +68,43 @@ function parseContent(input) {
   if (!Object.hasOwn(Article.CATEGORIES, content.category)) {
     throw new HttpError(400, 'INVALID_CATEGORY', 'יש לבחור קטגוריה תקינה');
   }
-  if (content.imageUrl && !/^https?:\/\/[^\s]+$/i.test(content.imageUrl)) {
+  if (content.imageUrl && !/^https?:\/\/[^\s]+$/i.test(content.imageUrl) && !ARTICLE_IMAGE_PATTERN.test(content.imageUrl)) {
     throw new HttpError(400, 'INVALID_IMAGE', 'יש להזין כתובת תמונה שמתחילה ב-http או https');
+  }
+  for (const field of ['imageSourceUrl', 'imageLicenseUrl']) {
+    if (content[field] && !/^https?:\/\/[^\s]+$/i.test(content[field])) {
+      throw new HttpError(400, 'INVALID_IMAGE_ATTRIBUTION', 'קישורי מקור ורישיון חייבים להתחיל ב-http או https');
+    }
   }
   return content;
 }
 
+async function ensureUniqueTitle(title, articleId) {
+  const normalizedTitle = title.trim().replace(/\s+/g, ' ');
+  if (!normalizedTitle) return;
+
+  const titlePattern = `^\\s*${normalizedTitle
+    .split(' ')
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('\\s+')}\\s*$`;
+  const filter = {
+    $or: [
+      { 'workingCopy.title': { $regex: titlePattern, $options: 'i' } },
+      { 'publishedVersion.title': { $regex: titlePattern, $options: 'i' } }
+    ]
+  };
+  if (articleId) filter._id = { $ne: articleId };
+
+  const duplicate = await Article.findOne(filter).select('_id').lean();
+  if (duplicate) {
+    throw new HttpError(409, 'DUPLICATE_TITLE', 'כבר קיימת כתבה עם כותרת זהה. יש לבחור כותרת אחרת.');
+  }
+}
+
 async function createArticle(user, input) {
-  const article = await Article.create({ authorId: user._id, workingCopy: parseContent(input) });
+  const content = parseContent(input);
+  await ensureUniqueTitle(content.title);
+  const article = await Article.create({ authorId: user._id, workingCopy: content });
   console.info(`[articles] created ${article._id} by ${user._id}`);
   return article;
 }
@@ -66,7 +114,9 @@ async function updateArticle(id, user, input) {
   if (user.role === 'reporter' && article.workflowStatus === 'pending') {
     throw new HttpError(409, 'AWAITING_REVIEW', 'לא ניתן לערוך כתבה שממתינה לאישור עורך');
   }
-  article.workingCopy = parseContent(input);
+  const content = parseContent(input, article.workingCopy);
+  await ensureUniqueTitle(content.title, article._id);
+  article.workingCopy = content;
   // Editing never changes the public snapshot, even for an editor.
   if (article.workflowStatus === 'published') article.workflowStatus = 'draft';
   article.revision += 1;
@@ -82,6 +132,9 @@ function requireCompleteContent(content) {
 
 async function transitionArticle(id, user, action, note) {
   const article = await getArticle(id, user);
+  if (action === 'submit' || action === 'approve') {
+    await ensureUniqueTitle(article.workingCopy.title, article._id);
+  }
   if (action === 'submit') {
     if (!['draft', 'returned'].includes(article.workflowStatus)) {
       throw new HttpError(409, 'INVALID_TRANSITION', 'ניתן להגיש רק טיוטה או כתבה שהוחזרה לתיקונים');
@@ -91,10 +144,10 @@ async function transitionArticle(id, user, action, note) {
     article.editorNote = '';
   } else {
     if (user.role !== 'editor') throw new HttpError(403, 'FORBIDDEN', 'פעולה זו מותרת לעורך בלבד');
-    if (article.workflowStatus !== 'pending') {
-      throw new HttpError(409, 'INVALID_TRANSITION', 'ניתן לאשר או להחזיר רק כתבה שממתינה לאישור');
-    }
     if (action === 'approve') {
+      if (!['draft', 'pending', 'returned'].includes(article.workflowStatus)) {
+        throw new HttpError(409, 'INVALID_TRANSITION', 'יש לערוך את הכתבה לפני פרסום גרסה נוספת');
+      }
       requireCompleteContent(article.workingCopy);
       const publishedAt = new Date();
       const version = (article.publishedVersion?.version || 0) + 1;
@@ -103,6 +156,9 @@ async function transitionArticle(id, user, action, note) {
       article.workflowStatus = 'published';
       article.editorNote = '';
     } else if (action === 'return') {
+      if (article.workflowStatus !== 'pending') {
+        throw new HttpError(409, 'INVALID_TRANSITION', 'ניתן להחזיר רק כתבה שממתינה לאישור');
+      }
       if (typeof note !== 'string' || !note.trim() || note.length > 1000) {
         throw new HttpError(400, 'NOTE_REQUIRED', 'יש לצרף הערה לתיקונים (עד 1000 תווים)');
       }
@@ -130,4 +186,21 @@ async function deleteArticle(id, user) {
   ]);
 }
 
-module.exports = { STATUS_LABELS, listArticles, getArticle, createArticle, updateArticle, transitionArticle, deleteArticle };
+async function saveDraft(id, user, input) {
+  if (!isObjectId(id)) throw new HttpError(400, 'INVALID_ID', 'מזהה טיוטה לא תקין');
+  const existing = await Article.findById(id);
+  if (existing) return updateArticle(id, user, input);
+  if (!['reporter', 'editor'].includes(user.role)) {
+    throw new HttpError(403, 'FORBIDDEN', 'יצירת טיוטה מותרת לכתב ולעורך בלבד');
+  }
+  const content = parseContent(input);
+  await ensureUniqueTitle(content.title);
+  try {
+    return await Article.create({ _id: id, authorId: user._id, workingCopy: content });
+  } catch (err) {
+    if (err.code !== 11000) throw err;
+    return updateArticle(id, user, input);
+  }
+}
+
+module.exports = { STATUS_LABELS, listArticles, getArticle, createArticle, updateArticle, transitionArticle, deleteArticle, saveDraft };

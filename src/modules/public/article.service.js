@@ -1,6 +1,7 @@
 const Article = require('../../models/Article');
 const { HttpError } = require('../../middleware/errors');
 const { isObjectId } = require('../../utils/objectId');
+const { getArticleMedia } = require('./article-media');
 
 const { CATEGORIES } = Article;
 
@@ -31,7 +32,7 @@ async function getPublicArticle(id) {
     title: version.title,
     summary: version.summary,
     paragraphs: splitParagraphs(version.body),
-    imageUrl: version.imageUrl,
+    ...getArticleMedia(version),
     category: version.category,
     categoryLabel: CATEGORIES[version.category] || version.category,
     authorName: doc.authorId ? doc.authorId.displayName : 'מערכת החדשות',

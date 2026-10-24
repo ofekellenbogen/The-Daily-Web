@@ -5,6 +5,7 @@
       <% if (locals.currentUser) { %>
         <a aria-current="<%= ['/editor', '/reporter'].includes(locals.currentPath) || locals.currentPath?.startsWith('/staff/articles/') ? 'page' : 'false' %>" href="<%= currentUser.role === 'editor' ? '/editor' : '/reporter' %>"><%= currentUser.role === 'editor' ? 'ניהול תוכן' : 'אזור העבודה שלי' %></a>
         <% if (currentUser.role === 'editor') { %><a aria-current="<%= locals.currentPath === '/editor/analytics' ? 'page' : 'false' %>" href="/editor/analytics">סטטיסטיקות</a><% } %>
+        <% if (currentUser.role === 'editor') { %><a aria-current="<%= locals.currentPath === '/editor/users' ? 'page' : 'false' %>" href="/editor/users">ניהול משתמשים</a><% } %>
       <% } %>
     </nav>
     <div class="site-masthead">
