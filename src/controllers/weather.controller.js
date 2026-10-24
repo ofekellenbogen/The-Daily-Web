@@ -20,7 +20,7 @@ async function getWeather(req, res) {
     return res.json({ success: true, weather: { ...weather, city: coords.cityName } });
   } catch (err) {
     // The external service failed and there is no cached copy: the rest of the site keeps working.
-    logger.error('[weather] Error in getWeather controller:', err.message);
+    logger.error('[weather] Weather request failed', err);
     return res.status(503).json({
       success: false,
       message: 'שירות מזג האוויר אינו זמין כעת'

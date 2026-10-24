@@ -22,7 +22,7 @@ function errorHandler(err, req, res, next) {
 
   // Unexpected (5xx) errors are logged with their stack trace for the developers.
   if (status >= 500) {
-    logger.error(`[error] ${req.method} ${req.originalUrl}`, err);
+    logger.error('[http] Request failed with a server error', err, { method: req.method, path: req.path, status, code: err.code, userId: req.user?._id });
   }
 
   // Our own HttpError messages are written for users. Errors from libraries

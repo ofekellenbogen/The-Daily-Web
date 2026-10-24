@@ -257,6 +257,15 @@ new ──► draft ──submit──► pending ──approve──► publish
 * Indexes on every list/sort/filter field and cursor pagination keep the site fast with thousands of articles.
 * Errors and important events (logins, create / submit / approve / return / delete, admin changes)
   are written to the console and to **`logs/app.log`** (ignored by Git).
+  Both outputs use UTC timestamps, `INFO` / `WARN` / `ERROR`, descriptive messages and
+  named context fields (such as `articleId`, `actorId`, `status` and `revision`).
+  Login rejections and location-name fallback use `WARN`; unexpected failures include
+  error details. Ordinary autosaves stay quiet unless they reopen a published article.
+  Log context excludes passwords, session tokens and request bodies. For example:
+
+  ```text
+  2026-10-24T14:00:00.000Z INFO [articles] Article submitted for editor review | articleId="123" actorId="456" status="pending" revision="2"
+  ```
 
 ### Responsive, semantic UI
 * HTML5 semantic tags (`header`, `nav`, `main`, `article`, `section`, `aside`, `footer`, `time`),

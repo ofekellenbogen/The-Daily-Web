@@ -172,7 +172,7 @@ async function createArticle(user, input, id) {
   const data = { authorId: user._id, workingCopy: content };
   if (id) data._id = id;
   const article = await Article.create(data);
-  logger.info(`[articles] created ${article._id} by ${user._id}`);
+  logger.info('[articles] Draft created', { articleId: article._id, actorId: user._id, status: article.workflowStatus });
   return article;
 }
 
@@ -185,12 +185,16 @@ async function updateArticle(id, user, input) {
   }
   const content = parseContent(input, article.workingCopy);
   await ensureUniqueTitle(content.title, article._id);
+  const previousStatus = article.workflowStatus;
   article.workingCopy = content;
   // Editing a published article starts a new draft. publishedVersion is NOT touched,
   // so readers keep seeing the approved version until the next approval.
   if (article.workflowStatus === 'published') article.workflowStatus = 'draft';
   article.revision += 1;
   await article.save();
+  if (previousStatus !== article.workflowStatus) {
+    logger.info('[articles] Published article reopened as draft', { articleId: article._id, actorId: user._id, from: previousStatus, to: article.workflowStatus, revision: article.revision });
+  }
   return article;
 }
 
@@ -214,7 +218,8 @@ async function saveDraft(id, user, input) {
 async function saveTransition(article, user, action) {
   article.revision += 1;
   await article.save();
-  logger.info(`[articles] ${action} ${article._id} by ${user._id}`); // operational log
+  const descriptions = { submit: 'Article submitted for editor review', approve: 'Article approved and published', return: 'Article returned for corrections' };
+  logger.info(`[articles] ${descriptions[action]}`, { articleId: article._id, actorId: user._id, status: article.workflowStatus, revision: article.revision, publishedVersion: article.publishedVersion?.version });
   return article;
 }
 
@@ -272,12 +277,12 @@ async function deleteArticle(id, user) {
   requireEditor(user);
   const article = await getArticle(id, user);
   await article.deleteOne();
-  logger.info(`[articles] deleted ${article._id} by ${user._id}`);
   await Promise.all([
     Comment.deleteMany({ articleId: article._id }),
     ArticleSeen.deleteMany({ articleId: article._id }),
     ViewStats.deleteMany({ articleId: article._id })
   ]);
+  logger.info('[articles] Article deleted with related comments, reader history and view statistics', { articleId: article._id, actorId: user._id });
 }
 
 module.exports = {

@@ -213,7 +213,7 @@ async function getWeather({ fetchFn = globalThis.fetch, coords = DEFAULT_COORDS 
       setCachedData(freshData, Date.now(), coords);
       return { ...freshData, cached: false, stale: false };
     } catch (err) {
-      logger.error('[weather] Failed to fetch external weather data:', err.message);
+      logger.error('[weather] Weather provider request failed', err);
       const old = cache.get(key);
       if (old && Date.now() - old.fetchedAt < MAX_STALE_MS) {
         return { ...old.data, cached: true, stale: true };

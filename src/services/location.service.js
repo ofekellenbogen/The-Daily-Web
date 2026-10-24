@@ -72,7 +72,7 @@ function getPlaceName(location, fetchFn = globalThis.fetch) {
 
   if (placeNames.size >= MAX_CACHED_NAMES) placeNames.delete(placeNames.keys().next().value);
   const promise = lookUpPlaceName(location, fetchFn).catch((err) => {
-    logger.error('[weather] could not name the reader location:', err.message);
+    logger.warn('[weather] Location lookup failed; displaying unknown place name', { reason: err.message });
     placeNames.delete(key); // try again next time
     return UNKNOWN_PLACE_NAME;
   });
