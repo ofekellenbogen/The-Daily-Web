@@ -19,12 +19,12 @@ async function login(req, res) {
     // Remove the old session (if any) so a previous login on this browser can't be reused.
     await authService.deleteSession(readCookie(req, authService.COOKIE_NAME));
     res.cookie(authService.COOKIE_NAME, token, { ...authService.cookieOptions(), maxAge: authService.SESSION_AGE_MS });
-    logger.info(`[auth] ${user.username} logged in`);
+    logger.info('[auth] Login succeeded; session created', { userId: user._id, role: user.role });
     // Reporter -> /reporter, editor -> /editor. 303 makes the browser follow with a GET.
     res.redirect(303, authService.workspacePath(user));
   } catch (err) {
     if (!(err instanceof HttpError)) throw err;
-    logger.info(`[auth] failed login (${err.code})`);
+    logger.warn('[auth] Login rejected', { reason: err.code, status: err.status });
     // Show the form again with the error and the username the user typed.
     res.status(err.status).render('auth/login', {
       title: 'התחברות',
@@ -38,6 +38,7 @@ async function login(req, res) {
 async function logout(req, res) {
   await authService.deleteSession(readCookie(req, authService.COOKIE_NAME));
   res.clearCookie(authService.COOKIE_NAME, authService.cookieOptions());
+  logger.info('[auth] Logout completed; session removed', { userId: req.user?._id });
   res.redirect(303, '/login');
 }
 

@@ -44,7 +44,7 @@ test('getWeatherInfo maps WMO codes to Hebrew descriptions and icons', () => {
 
 test('getWeather returns current conditions, today hourly list and daily forecast', async () => {
   const result = await weatherService.getWeather({ fetchFn: async () => forecastResponse() });
-  assert.equal(result.city, 'רעננה, ישראל');
+  assert.equal(result.city, 'תל אביב-יפו (מיקום ברירת מחדל)');
   assert.equal(result.temperature, 26);
   assert.equal(result.feelsLike, 27);
   assert.equal(result.tempMax, 27);
@@ -74,7 +74,7 @@ test('getWeather still works when the provider returns only current weather', as
   assert.deepEqual(result.daily, []);
 });
 
-test('results are cached, and forceRefresh bypasses the cache', async () => {
+test('results are cached', async () => {
   let calls = 0;
   const fetchFn = async () => { calls++; return forecastResponse(); };
   const first = await weatherService.getWeather({ fetchFn });
@@ -82,13 +82,12 @@ test('results are cached, and forceRefresh bypasses the cache', async () => {
   assert.equal(calls, 1);
   assert.equal(first.cached, false);
   assert.equal(second.cached, true);
-  await weatherService.getWeather({ fetchFn, forceRefresh: true });
-  assert.equal(calls, 2);
 });
 
-test('cache expires before 15 minutes', async () => {
-  assert.ok(weatherService.CACHE_TTL_MS < 15 * 60 * 1000);
-  weatherService.setCachedData({ temperature: 1 }, Date.now() - 15 * 60 * 1000);
+test('fresh cache lasts at most 5 minutes; with failures data is served until 10 (+ 5-minute browser reload = never older than 15)', async () => {
+  assert.ok(weatherService.CACHE_TTL_MS <= 5 * 60 * 1000);
+  assert.ok(weatherService.MAX_STALE_MS + 5 * 60 * 1000 <= 15 * 60 * 1000);
+  weatherService.setCachedData({ temperature: 1 }, Date.now() - 5 * 60 * 1000);
   assert.equal(weatherService.isCacheValid(), false);
 });
 
@@ -104,14 +103,17 @@ test('concurrent requests share one in-flight fetch', async () => {
   assert.ok(results.every((r) => r.temperature === 26));
 });
 
-test('serves stale cache when the provider fails, and throws when there is none', async () => {
+test('serves recent stale cache when the provider fails, but never data 10+ minutes old', async () => {
   const failing = async () => { throw new Error('Network timeout'); };
   await assert.rejects(weatherService.getWeather({ fetchFn: failing }), /Network timeout/);
 
-  weatherService.setCachedData({ temperature: 24 }, Date.now() - 20 * 60 * 1000);
+  weatherService.setCachedData({ temperature: 24 }, Date.now() - 8 * 60 * 1000);
   const result = await weatherService.getWeather({ fetchFn: failing });
   assert.equal(result.temperature, 24);
   assert.equal(result.stale, true);
+
+  weatherService.setCachedData({ temperature: 24 }, Date.now() - 10 * 60 * 1000);
+  await assert.rejects(weatherService.getWeather({ fetchFn: failing }), /Network timeout/);
 
   weatherService.clearCache();
   await assert.rejects(

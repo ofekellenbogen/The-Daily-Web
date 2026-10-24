@@ -14,11 +14,7 @@ before(async () => {
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
 
-beforeEach(() => {
-  weatherService.clearCache();
-  // No real IP lookup during tests.
-  mock.method(locationService, 'getServerLocation', async () => weatherService.DEFAULT_COORDS);
-});
+beforeEach(() => weatherService.clearCache());
 afterEach(() => mock.restoreAll());
 
 after(async () => {
@@ -29,25 +25,22 @@ after(async () => {
 });
 
 test('GET /api/weather returns the weather payload with cache headers', async () => {
-  mock.method(weatherService, 'getWeather', async () => ({ city: 'רעננה, ישראל', temperature: 26, hourly: [], daily: [] }));
+  mock.method(weatherService, 'getWeather', async () => ({ temperature: 26, hourly: [], daily: [] }));
 
   const res = await fetch(`${baseUrl}/api/weather`);
   assert.equal(res.status, 200);
-  assert.equal(res.headers.get('cache-control'), 'public, max-age=60');
+  assert.equal(res.headers.get('cache-control'), 'no-cache');
   const json = await res.json();
   assert.equal(json.success, true);
   assert.equal(json.weather.temperature, 26);
 });
 
-test('GET /api/weather?refresh=true forces a refresh', async () => {
-  let forced = null;
-  mock.method(weatherService, 'getWeather', async ({ forceRefresh }) => {
-    forced = forceRefresh;
-    return { temperature: 24 };
-  });
-  const res = await fetch(`${baseUrl}/api/weather?refresh=true`);
-  assert.equal(res.status, 200);
-  assert.equal(forced, true);
+test('GET /api/weather without a location uses Tel Aviv, marked as the default location', async () => {
+  let coords = null;
+  mock.method(weatherService, 'getWeather', async (options) => { coords = options.coords; return { temperature: 26 }; });
+  const json = await (await fetch(`${baseUrl}/api/weather`)).json();
+  assert.equal(coords, weatherService.DEFAULT_COORDS);
+  assert.equal(json.weather.city, 'תל אביב-יפו (מיקום ברירת מחדל)');
 });
 
 test('GET /api/weather returns 503 when the service fails', async () => {
@@ -57,12 +50,22 @@ test('GET /api/weather returns 503 when the service fails', async () => {
   assert.equal((await res.json()).success, false);
 });
 
-test('GET /api/weather?lat=&lon= uses the reader location, rounded', async () => {
+test('GET /api/weather?lat=&lon= uses the reader location and returns their town name', async () => {
   let coords = null;
-  mock.method(weatherService, 'getWeather', async (options) => { coords = options.coords; return { temperature: 20 }; });
+  let named = null;
+  mock.method(locationService, 'describeReaderLocation', async (location) => {
+    named = location;
+    return { latitude: 31.3, longitude: 34.8, cityName: 'באר-שבע, ישראל' };
+  });
+  mock.method(weatherService, 'getWeather', async (options) => {
+    coords = options.coords;
+    return { temperature: 20, city: 'another town in the same area' };
+  });
   const res = await fetch(`${baseUrl}/api/weather?lat=31.2518&lon=34.7913`);
   assert.equal(res.status, 200);
-  assert.deepEqual(coords, { latitude: 31.3, longitude: 34.8, cityName: 'המיקום שלך' });
+  assert.deepEqual(named, { latitude: 31.25, longitude: 34.79 });
+  assert.deepEqual(coords, { latitude: 31.3, longitude: 34.8, cityName: 'באר-שבע, ישראל' });
+  assert.equal((await res.json()).weather.city, 'באר-שבע, ישראל');
 });
 
 test('GET /api/weather with an invalid location returns 400', async () => {

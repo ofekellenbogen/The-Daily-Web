@@ -64,6 +64,12 @@
 
 /* ===== Editor action buttons, published-version snapshot, image preview ===== */
 .staff-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 24px 0; }
+/* The return note + button group: its children join the .staff-actions flex row directly. */
+.return-panel { display: contents; }
+/* A full-width label starts a new row, so it sits below the approve button. */
+.return-panel label { flex: 0 0 100%; }
+/* "Still live" note for a published article that has an update in progress. */
+.live-note { color: #176b54; font-weight: 600; }
 .approved-snapshot-card { margin-top: 28px; border-color: #a8d8cd; background: linear-gradient(135deg, #f4fcfa, var(--color-surface)); }
 .approved-snapshot-card__body { margin-top: 18px; padding-top: 18px; border-top: 1px solid #cfe8e1; }
 .published-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75; }
@@ -105,7 +111,7 @@
 .analytics-timezone { color: var(--color-muted); font-size: 0.8rem; font-weight: 600; padding: 5px 10px; border: 1px solid var(--color-border); border-radius: 4px; }
 
 /* Filter form - Grid: article search | from | to | button */
-.analytics-filter { display: grid; grid-template-columns: minmax(220px, 1fr) 170px 170px auto; align-items: end; gap: 36px 18px; padding: 22px 24px 42px; background: var(--color-surface); border-block: 1px solid var(--color-border); }
+.analytics-filter { display: grid; grid-template-columns: minmax(220px, 1fr) 170px 170px; align-items: end; gap: 36px 18px; padding: 22px 24px 42px; background: var(--color-surface); border-block: 1px solid var(--color-border); }
 .analytics-filter > div { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .analytics-filter label { font-size: 0.8rem; font-weight: 600; color: #51575a; }
 .analytics-article-field { position: relative; }
@@ -214,3 +220,26 @@
 .save-feedback { display: flex; align-items: center; gap: 7px; min-height: 1.6em; margin: 12px 0 18px; color: #68736e; font-size: .82rem; font-weight: 400; line-height: 1.6; }
 .save-feedback--saved::before { content: '\2713'; color: #5b8071; font-size: .9rem; }
 .save-feedback.form-error { color: var(--color-primary-dark); font-size: .875rem; }
+
+/* Analytics overview and report cards. */
+.analytics-intro { margin: -10px 0 22px; color: var(--color-muted); line-height: 1.7; }
+.analytics-overview-button { margin-bottom: 16px; padding: 9px 18px; border: 1px solid #b4d9dc; border-radius: 24px; background: #e8f4f4; color: #07616b; font: inherit; font-weight: 600; cursor: pointer; }
+.analytics-overview-button:focus-visible { outline: 3px solid var(--analytics-accent); outline-offset: 3px; }
+.analytics-filter { border: 1px solid var(--color-border); border-radius: 14px; box-shadow: 0 4px 18px #252a2c05; }
+#analytics-states { margin-block: 28px; }
+#analytics-states h2 { font-size: 1rem; margin-bottom: 16px; }
+.analytics-state-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; margin: 0; }
+.analytics-state-grid > div { background: var(--color-surface); border: 1px solid var(--color-border); border-top: 3px solid #a4afb7; border-radius: 12px; padding: 20px; }
+.analytics-state-grid > div:nth-child(3) { border-top-color: #c28a25; }
+.analytics-state-grid > div:nth-child(4) { border-top-color: #278363; }
+.analytics-state-grid > div:nth-child(5) { border-top-color: #b35b64; }
+.analytics-state-grid > .analytics-state-all { border-color: #087f8c; background: #edf8f8; }
+.analytics-state-grid dt { font-size: .85rem; color: #51575a; }
+.analytics-state-grid dd { margin: 12px 0 0; font-size: 2rem; font-weight: 750; font-variant-numeric: tabular-nums; }
+.analytics-report-grid { background: var(--color-surface); padding: 24px; border: 1px solid var(--color-border); border-radius: 14px; }
+.analytics-report-grid:has(#analytics-history[hidden]) { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 900px) { .analytics-state-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .analytics-state-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .analytics-state-grid > .analytics-state-all { grid-column: 1 / -1; } .analytics-report-grid { padding: 16px; } }
+
+/* Use a clean Hebrew sans-serif face for statistics headings. */
+.analytics-page h1, .analytics-heading h2 { font-family: Arial, "Noto Sans Hebrew", sans-serif; font-weight: 700; }

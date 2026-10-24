@@ -7,9 +7,15 @@
   <h2 id="comments-title">תגובות (<span id="comments-count"><%= commentCount %></span>)</h2>
 
   <form class="comment-form" id="comment-form" novalidate>
+    <%# Logged-in staff comment under their own name (enforced again by the server); guests pick a name. %>
     <div class="field">
-      <label for="comment-name">שם (לא חובה)</label>
-      <input type="text" id="comment-name" name="authorName" maxlength="50" placeholder="אורח" autocomplete="nickname">
+      <% if (locals.currentUser) { %>
+        <label for="comment-name">שם</label>
+        <input type="text" id="comment-name" name="authorName" value="<%= currentUser.displayName %>" readonly>
+      <% } else { %>
+        <label for="comment-name">שם (לא חובה)</label>
+        <input type="text" id="comment-name" name="authorName" maxlength="50" placeholder="אורח" autocomplete="nickname">
+      <% } %>
     </div>
     <div class="field">
       <label for="comment-body">תגובה</label>

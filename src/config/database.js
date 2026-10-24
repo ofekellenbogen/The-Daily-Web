@@ -8,7 +8,7 @@ async function connectDatabase(uri) {
   }
   // MONGODB_DB lets every developer pick a database name without changing the URI.
   await mongoose.connect(uri, { dbName: process.env.MONGODB_DB || 'daily-web' });
-  logger.info('[db] connected');
+  logger.info('[db] MongoDB connection established', { database: mongoose.connection.name });
 }
 
 module.exports = { connectDatabase };

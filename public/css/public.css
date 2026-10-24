@@ -291,17 +291,6 @@
   background: var(--color-border);
 }
 
-.article__image-credit {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  padding: 8px 16px;
-  color: var(--color-muted);
-  font-size: 0.78rem;
-}
-
-.article__image-credit a { color: var(--color-primary); }
-
 .article__body {
   padding: 12px 28px 28px;
   font-size: 1.1rem;
@@ -327,6 +316,10 @@
   flex-direction: column;
   gap: 12px;
   margin-bottom: 20px;
+}
+
+.comment-form .field {
+  flex: 0 0 auto; /* the shared .field flex-basis would stretch each field to 160px tall in this column */
 }
 
 .comment-form textarea {
@@ -411,7 +404,7 @@
 }
 
 /* ===== Weather ticker (views/partials/weather.ejs + /js/weather.js) =====
-   A strip at the top of the home page: fixed label | moving weather items | refresh button (Flexbox row).
+   A strip at the top of the home page: fixed label | moving weather items (Flexbox row).
    The items move with a CSS animation; weather.js puts them in the track twice, so when the track
    has moved by exactly half its width (one copy) the animation restarts and the loop looks endless. */
 .weather-ticker {
@@ -477,29 +470,18 @@
   to { transform: translateX(50%); }
 }
 
-.weather-ticker__refresh,
 .weather-ticker__retry {
   flex-shrink: 0;
+  margin-inline-start: 10px;
+  padding: 2px 12px;
   color: #fff;
   font: inherit;
+  font-size: 0.82rem;
   cursor: pointer;
   background: rgba(255, 255, 255, 0.16);
   border: 0;
+  border-radius: 4px;
 }
-.weather-ticker__refresh {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  margin: 0 8px;
-  padding: 0;
-  border-radius: 50%;
-  transition: background 0.2s ease, transform 0.3s ease;
-}
-.weather-ticker__refresh:hover:not(:disabled) { background: rgba(255, 255, 255, 0.3); transform: rotate(90deg); }
-.weather-ticker__refresh:disabled { opacity: 0.5; cursor: not-allowed; }
-.weather-ticker__retry { margin-inline-start: 10px; padding: 2px 12px; font-size: 0.82rem; border-radius: 4px; }
-.weather-ticker__refresh:focus-visible,
 .weather-ticker__retry:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
 /* Mobile: hide the city name to leave more room for the moving items. */

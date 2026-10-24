@@ -69,10 +69,10 @@ if (require.main === module) {
 
   connectDatabase(process.env.MONGODB_URI)
     .then(() => {
-      app.listen(PORT, () => logger.info(`[server] listening on http://localhost:${PORT}`));
+      app.listen(PORT, () => logger.info('[server] HTTP server ready to accept requests', { port: PORT, environment: process.env.NODE_ENV || 'development' }));
     })
     .catch((err) => {
-      logger.error('[server] failed to start:', err.message);
+      logger.error('[server] Startup failed; HTTP server was not started', err);
       process.exitCode = 1;
     });
 }

@@ -63,20 +63,8 @@ async function listArticles(query = {}) {
   };
 }
 
-// Builds the graph data for one article (GET /api/analytics/articles/:id?start=...&end=...).
-async function getAnalytics(id, query = {}, now = new Date()) {
-  if (!isObjectId(id)) throw new HttpError(404, 'NOT_FOUND', 'הכתבה לא נמצאה');
-  const range = parseRange(query, now);
-  const article = await Article.findOne({ _id: id, publishedVersion: { $ne: null } })
-    .select('publishedVersion.title publicationHistory').lean();
-  if (!article) throw new HttpError(404, 'NOT_FOUND', 'הכתבה לא נמצאה');
-
-  // One ViewStats document per day in the range.
-  const stats = await ViewStats.find({
-    articleId: id,
-    dayUtc: { $gte: new Date(range.from), $lt: new Date(range.until) }
-  }).select('dayUtc buckets').sort({ dayUtc: 1 }).lean();
-
+// Shared UTC buckets keep overview and individual reports aligned.
+function buildPoints(stats, range) {
   // A single day is shown in 5-minute points; longer ranges are grouped into hourly points
   // (31 days * 288 slots would be too many points to draw clearly).
   const intervalMs = range.until - range.from <= DAY_MS ? BUCKET_MS : HOUR_MS;
@@ -100,6 +88,58 @@ async function getAnalytics(id, query = {}, now = new Date()) {
     }
   }
 
+  return { points, intervalMs };
+}
+
+// Aggregate in MongoDB so the response stays bounded even with many articles.
+async function getOverview(query = {}, now = new Date()) {
+  const range = parseRange(query, now);
+  const [states, buckets] = await Promise.all([
+    Article.aggregate([
+      { $group: { _id: '$workflowStatus', count: { $sum: 1 }, publications: { $sum: {
+        $size: { $filter: { input: '$publicationHistory', as: 'event', cond: { $and: [
+          { $gte: ['$$event.publishedAt', new Date(range.from)] },
+          { $lt: ['$$event.publishedAt', new Date(range.until)] }
+        ] } } }
+      } } } }
+    ]),
+    ViewStats.aggregate([
+      { $match: { dayUtc: { $gte: new Date(range.from), $lt: new Date(range.until) } } },
+      { $project: { dayUtc: 1, buckets: { $objectToArray: '$buckets' } } },
+      { $unwind: '$buckets' },
+      { $match: { 'buckets.k': { $regex: '^\\d+$' }, 'buckets.v': { $gte: 0 } } },
+      { $group: { _id: { day: '$dayUtc', slot: '$buckets.k' }, count: { $sum: '$buckets.v' } } }
+    ])
+  ]);
+  const counts = Object.fromEntries(Article.WORKFLOW_STATUSES.map((state) => [state, 0]));
+  for (const state of states) if (Object.hasOwn(counts, state._id)) counts[state._id] = state.count;
+  const { points, intervalMs } = buildPoints(buckets.map((bucket) => ({
+    dayUtc: bucket._id.day, buckets: { [bucket._id.slot]: bucket.count }
+  })), range);
+  return {
+    article: null, counts, articleCount: Object.values(counts).reduce((sum, count) => sum + count, 0),
+    publicationCount: states.reduce((sum, state) => sum + state.publications, 0),
+    start: range.start, end: range.end, intervalMinutes: intervalMs / 60000,
+    total: points.reduce((sum, point) => sum + point.views, 0), points, publications: []
+  };
+}
+
+// Builds the graph data for one article (GET /api/analytics/articles/:id?start=...&end=...).
+async function getAnalytics(id, query = {}, now = new Date()) {
+  if (!isObjectId(id)) throw new HttpError(404, 'NOT_FOUND', 'הכתבה לא נמצאה');
+  const range = parseRange(query, now);
+  const article = await Article.findOne({ _id: id, publishedVersion: { $ne: null } })
+    .select('publishedVersion.title publicationHistory').lean();
+  if (!article) throw new HttpError(404, 'NOT_FOUND', 'הכתבה לא נמצאה');
+
+  // One ViewStats document per day in the range.
+  const stats = await ViewStats.find({
+    articleId: id,
+    dayUtc: { $gte: new Date(range.from), $lt: new Date(range.until) }
+  }).select('dayUtc buckets').sort({ dayUtc: 1 }).lean();
+
+  const { points, intervalMs } = buildPoints(stats, range);
+
   // Approval moments inside the range, oldest first.
   const publications = article.publicationHistory
     .filter((event) => {
@@ -120,4 +160,4 @@ async function getAnalytics(id, query = {}, now = new Date()) {
   };
 }
 
-module.exports = { listArticles, getAnalytics };
+module.exports = { listArticles, getAnalytics, getOverview };

@@ -19,7 +19,6 @@
   const searchStatus = document.getElementById('analytics-search-status');
   const startInput = document.getElementById('analytics-start');
   const endInput = document.getElementById('analytics-end');
-  const submitButton = document.getElementById('analytics-submit');
   const statusText = document.getElementById('analytics-status');
   const resultSection = document.getElementById('analytics-result');
 
@@ -76,6 +75,7 @@
     reportController?.abort();
     form.removeAttribute('aria-busy');
     resultSection.hidden = true;
+    document.getElementById('analytics-states').hidden = true;
     statusText.textContent = '';
   }
 
@@ -95,10 +95,10 @@
     articleInput.value = article.title;
     // The input is valid again, because a real article was chosen from the list.
     articleInput.setCustomValidity('');
-    submitButton.disabled = false;
     clearTimeout(searchTimer);
     searchController?.abort();
     closeSuggestions();
+    return loadAnalytics();
   }
 
   // Builds one <li role="option"> in the suggestion list.
@@ -218,9 +218,20 @@
   }
 
   function render(data) {
-    document.getElementById('analytics-title').textContent = data.article.title;
+    const overview = !data.article;
+    document.getElementById('analytics-title').textContent = data.article?.title || 'תמונת מצב כללית';
+    document.getElementById('analytics-scope').textContent = overview ? 'כל הכתבות' : 'הכתבה הנבחרת';
+    document.getElementById('analytics-states').hidden = !overview;
+    document.getElementById('analytics-history').hidden = overview;
+    document.getElementById('analytics-event-key').hidden = overview;
+    if (overview) {
+      document.getElementById('analytics-article-count').textContent = numberFormat.format(data.articleCount);
+      for (const [state, count] of Object.entries(data.counts)) {
+        document.getElementById(`analytics-state-${state}`).textContent = numberFormat.format(count);
+      }
+    }
     document.getElementById('analytics-total').textContent = numberFormat.format(data.total);
-    document.getElementById('analytics-publication-count').textContent = numberFormat.format(data.publications.length);
+    document.getElementById('analytics-publication-count').textContent = numberFormat.format(data.publicationCount ?? data.publications.length);
     document.getElementById('analytics-interval').textContent = `UTC | צפיות בכל ${data.intervalMinutes} דקות`;
     renderPublications(data.publications);
     resultSection.hidden = false;
@@ -307,7 +318,7 @@
   // ===== Loading the report ========================================================
   async function loadAnalytics(event) {
     event?.preventDefault();
-    if (!form.reportValidity() || !selectedArticleId) return;
+    if (!form.reportValidity()) return;
 
     // Both dates are included, so a range from a day to the same day is 1 day.
     const days = (Date.parse(endInput.value) - Date.parse(startInput.value)) / DAY_MS + 1;
@@ -327,7 +338,8 @@
 
     try {
       const params = new URLSearchParams({ start: startInput.value, end: endInput.value });
-      const url = `/api/analytics/articles/${encodeURIComponent(selectedArticleId)}?${params}`;
+      const endpoint = selectedArticleId ? `articles/${encodeURIComponent(selectedArticleId)}` : 'overview';
+      const url = `/api/analytics/${endpoint}?${params}`;
       const data = await getJson(url, controller.signal);
       if (controller.signal.aborted) return;
       render(data);
@@ -366,11 +378,22 @@
     activeOption.scrollIntoView({ block: 'nearest' });
   }
 
+  document.getElementById('analytics-overview').addEventListener('click', () => {
+    selectedArticleId = '';
+    articleInput.value = '';
+    articleInput.setCustomValidity('');
+    clearTimeout(searchTimer);
+    searchController?.abort();
+    closeSuggestions();
+    loadAnalytics();
+  });
+
   // ===== Event listeners ===========================================================
   form.addEventListener('submit', loadAnalytics);
 
-  // Changing a date hides the old report until the user loads a new one.
-  form.addEventListener('change', resetReport);
+  // Refresh the report as soon as either date changes.
+  startInput.addEventListener('change', loadAnalytics);
+  endInput.addEventListener('change', loadAnalytics);
 
   articleInput.addEventListener('focus', () => {
     searchOpen = true;
@@ -389,10 +412,10 @@
     clearTimeout(searchTimer);
     searchController?.abort();
     resetReport();
-    // Typing cancels the previous choice: the user must pick an article from the list again.
+    // Typing clears the previous selection and restores the combined report.
     selectedArticleId = '';
-    submitButton.disabled = true;
-    articleInput.setCustomValidity('יש לבחור כתבה מתוצאות החיפוש');
+    articleInput.setCustomValidity('');
+    loadAnalytics();
     closeSuggestions();
     searchOpen = true;
     // Debounce: search only after the user stops typing for a moment.
@@ -430,4 +453,5 @@
       moveHighlight(event.key);
     }
   });
+  loadAnalytics();
 })();

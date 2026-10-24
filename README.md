@@ -37,7 +37,7 @@ Open <http://localhost:3000>.
 
 ### Accounts
 
-User accounts already exist in the shared database (there is no seed script). Log in at
+User accounts already exist in the shared database. Log in at
 `/login`. Editors can create users and reset passwords at **ניהול משתמשים** (`/editor/users`).
 
 | Role     | Example usernames                                         | Lands on    |
@@ -45,6 +45,14 @@ User accounts already exist in the shared database (there is no seed script). Lo
 | Guest    | (no login)                                                | `/`         |
 | Reporter | `dana.levi`, `yossi.cohen`, `maya.mizrahi`, `amir.peretz` | `/reporter` |
 | Editor   | any account with the `editor` role                        | `/editor`   |
+
+**Using your own empty database?** There is no sign-up page, so create the first editor from the
+project folder (change the three values; the password needs 8+ characters), then log in and create
+the other users from **ניהול משתמשים**:
+
+```bash
+node -e "require('dotenv').config(); const m=require('mongoose'); const U=require('./src/models/User'); const {hashPassword}=require('./src/utils/password'); (async()=>{ await m.connect(process.env.MONGODB_URI,{dbName:process.env.MONGODB_DB||'daily-web'}); await U.create({username:'editor',displayName:'Editor',role:'editor',passwordHash:await hashPassword('change-me-123')}); await m.disconnect(); })()"
+```
 
 ---
 
@@ -66,7 +74,8 @@ browser ──► route ──► middleware (login / role check) ──► cont
 
 ```text
 app.js                          Express setup: middleware order, routes, start the server
-.env.example                    Template for the environment variables
+package.json                    Dependencies and npm scripts (start, dev, test)
+.env.example                    Template for the environment variables (copy to .env)
 
 src/
   config/database.js            Connects to MongoDB
@@ -97,8 +106,8 @@ src/
     analytics.service.js          data for the views-over-time graph
     admin.service.js              CRUD for users, comments and view statistics
     auth.service.js               login check, sessions
-    weather.service.js            Open-Meteo client with a 14-minute cache
-    location.service.js           reader's browser location, or the server's location from its IP
+    weather.service.js            Open-Meteo client with a 5-minute cache per area
+    location.service.js           reader's location and town name (default: Tel Aviv)
   middleware/
     auth.js                       loadUser, requireAuth, requireRole, sameOrigin (CSRF)
     deviceId.js                   anonymous device cookie for guests
@@ -133,12 +142,18 @@ public/                         Static files sent to the browser as-is
   images/                         placeholder article image
 
 tests/                          Automated tests (Node's built-in test runner, MongoDB is mocked)
-plan/                           Assignment PDF and the team's work split
+plan/                           Assignment PDF and the team's work split (workplan.md)
+logs/                           app.log, created when the server runs (ignored by Git)
 ```
 
 ---
 
 ## 3. Features
+
+Summary: readers (guests) browse a searchable, infinitely scrolling news feed, read articles and
+comment; reporters write articles that autosave and go through an editor's approval; editors
+review, publish, edit and delete articles, manage users, comments and statistics, and follow the
+**Impact Analytics** graph; a weather ticker shows local weather. The details follow.
 
 ### Home page – news feed (`/`)
 * Only **published** articles are shown (the query reads `publishedVersion` only).
@@ -155,6 +170,8 @@ plan/                           Assignment PDF and the team's work split
 * Title, reporter, category, publish date, main image and the full text.
 * The full article is in the **first HTML response** (EJS), so search engines can read it without JavaScript.
 * Comments: the list plus a form. A new comment appears immediately (Ajax), without reloading the list.
+  Guests can type any name (left empty it becomes "אורח"); a logged-in reporter or editor always
+  comments under their own display name (the field is read-only and the server enforces it).
 * **Every visit is counted** as a view for the statistics.
 
 ### Comment limit (spam protection)
@@ -189,7 +206,9 @@ new ──► draft ──submit──► pending ──approve──► publish
 ```
 
 * A reporter may only move **their own** article from draft/returned to pending.
-* An editor may approve (publish) or return a pending article with a required note.
+* An editor may approve (publish) or return a pending article with a required note. Only a
+  **pending** article can be published; an editor who edits a draft (for example an update to a
+  published article) first sends it to pending with the same "send for approval" button.
 * Any other transition returns **409**. A reporter can't edit while the article is pending.
 
 ### Continuous saving (autosave)
@@ -205,6 +224,8 @@ new ──► draft ──submit──► pending ──approve──► publish
 * Edits only change `workingCopy`, so **readers keep seeing the approved version**, even while
   the edit is pending review. Only approval copies the new content into `publishedVersion`
   (as version 2, 3, …).
+* While an update is in progress, the workspace list and the editor page mark the article as
+  still live ("מפורסמת באתר"), so it's clear readers still see the approved version.
 
 ### Editor area (`/editor`)
 * All articles from all reporters, filtered by state and searched by title (Ajax).
@@ -233,15 +254,19 @@ new ──► draft ──submit──► pending ──approve──► publish
 * A **moving ticker** at the top of the home page (between the site header and "החדשות האחרונות"),
   using **Open-Meteo** (free, no API key or credit card). It shows current conditions, the next hours and
   the next days; it pauses on hover and stays still for users who prefer reduced motion.
-* **Location:** the page first shows the weather for the server computer's location, then asks the
-  reader for permission to use their location. If allowed, the ticker switches to the reader's own
-  area ("המיקום שלך"). Only coordinates rounded to ~10 km are sent, never the exact position.
-  The server's location is found from its public IP address (ipwho.is, free, no key; approximate,
-  often Tel Aviv in Israel) with a Hebrew city name from Open-Meteo's geocoding API; if that fails, Raanana is used.
-* The **server** calls Open-Meteo at most once every 14 minutes **per ~10 km area** and shares that
-  cached result with every reader in the area (data is never more than 15 minutes old), so thousands
-  of readers cause only a few external requests. If the service fails, the last data is shown, or a
-  friendly message - the rest of the site keeps working.
+* **Location:** the browser asks the reader for permission to use their location.
+  * **Found:** the ticker shows the reader's own town, e.g. "באר-שבע, ישראל". The browser sends
+    coordinates rounded to ~1 km (never the exact position); the town name comes from OpenStreetMap's
+    free **Nominatim** reverse-geocoding service (each ~1 km cell is looked up once and remembered;
+    requests are spaced 1 second apart as its rules require).
+  * **Not found** (permission refused or not supported): Tel Aviv is shown, marked
+    "תל אביב-יפו (מיקום ברירת מחדל)". This is also shown for the moment before the reader answers.
+* The **server** calls Open-Meteo at most once every 5 minutes **per ~10 km area** and shares that
+  cached result with every reader in the area, so thousands of readers cause only a few external
+  requests. The page reloads the weather by itself every 5 minutes (the browser doesn't cache the
+  answer), so what is on screen is never more than 15 minutes old. If the service fails, the last
+  data is still shown while it is under 15 minutes old (the server serves it up to 10 minutes,
+  + 5 until the next reload); after that a friendly message is shown - the rest of the site keeps working.
 
 ### Errors, validation, performance and logs
 * All input is validated on the server (and the browser). Invalid data returns **400**, unknown
@@ -250,6 +275,15 @@ new ──► draft ──submit──► pending ──approve──► publish
 * Indexes on every list/sort/filter field and cursor pagination keep the site fast with thousands of articles.
 * Errors and important events (logins, create / submit / approve / return / delete, admin changes)
   are written to the console and to **`logs/app.log`** (ignored by Git).
+  Both outputs use UTC timestamps, `INFO` / `WARN` / `ERROR`, descriptive messages and
+  named context fields (such as `articleId`, `actorId`, `status` and `revision`).
+  Login rejections and location-name fallback use `WARN`; unexpected failures include
+  error details. Ordinary autosaves stay quiet unless they reopen a published article.
+  Log context excludes passwords, session tokens and request bodies. For example:
+
+  ```text
+  2026-10-24T14:00:00.000Z INFO [articles] Article submitted for editor review | articleId="123" actorId="456" status="pending" revision="2"
+  ```
 
 ### Responsive, semantic UI
 * HTML5 semantic tags (`header`, `nav`, `main`, `article`, `section`, `aside`, `footer`, `time`),
@@ -265,7 +299,7 @@ new ──► draft ──submit──► pending ──approve──► publish
 | GET | `/api/articles` | all | Feed page (`q`, `category`, `seen`, `sort`, `cursor`) |
 | GET | `/articles/:id` | all | Article page |
 | GET / POST | `/api/articles/:id/comments` | all | List / add comments |
-| GET | `/api/weather` | all | Weather data (optional `lat`, `lon` of the reader, `refresh`) |
+| GET | `/api/weather` | all | Weather data (optional `lat`, `lon` of the reader) |
 | GET / POST | `/login` | all | Login form / log in |
 | POST | `/logout` | logged in | Log out |
 | GET | `/reporter`, `/editor` | reporter / editor | Workspaces |
@@ -273,7 +307,7 @@ new ──► draft ──submit──► pending ──approve──► publish
 | GET / POST | `/api/staff/articles` | staff | List (`status`, `q`, `page`) / create |
 | GET / PUT / PATCH | `/api/staff/articles/:id` | owner or editor | Read / autosave / update |
 | DELETE | `/api/staff/articles/:id` | editor | Delete |
-| POST | `/api/staff/articles/:id/submit` | reporter (owner) | Send for review |
+| POST | `/api/staff/articles/:id/submit` | reporter (owner) / editor | Send for review |
 | POST | `/api/staff/articles/:id/approve` | editor | Publish |
 | POST | `/api/staff/articles/:id/return` | editor | Return with `{ note }` |
 | GET | `/editor/analytics`, `/api/analytics/articles[/:id]` | editor | Impact Analytics |

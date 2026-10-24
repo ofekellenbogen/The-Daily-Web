@@ -1,13 +1,13 @@
 // Weather data from Open-Meteo (https://open-meteo.com): a free web service
 // that needs no API key and no credit card.
 //
-// Location: the reader's browser location when they allow it (rounded to ~10 km),
-// otherwise the server computer's location (see location.service.js).
+// Location: the reader's browser location when they allow it (weather shared per ~10 km area),
+// otherwise Tel Aviv as the default (see location.service.js).
 //
 // Scaling to thousands of readers: the server - not each browser - calls Open-Meteo,
-// at most once every 14 minutes PER AREA (the requirement allows data up to 15 minutes old).
-// Readers in the same ~10 km area share one cached copy. If Open-Meteo is down, the last
-// cached data for that area is shown.
+// at most once every 5 minutes PER AREA. Readers in the same ~10 km area share one cached
+// copy. If Open-Meteo is down, the last cached data for that area is shown while it is
+// at most 10 minutes old.
 const logger = require('../utils/logger');
 
 // WMO weather codes (returned by Open-Meteo) -> Hebrew description and icon.
@@ -44,15 +44,20 @@ const WMO_CODE_MAP = {
 
 const DEFAULT_WEATHER_INFO = { description: 'מעונן חלקית', icon: '⛅' };
 
-// Weather data must never be older than 15 minutes; 14 keeps us safely inside that window.
-const CACHE_TTL_MS = 14 * 60 * 1000;
+// Weather on screen must never be older than 15 minutes. The browser reloads every 5 minutes
+// (public/js/weather.js), so the data the server sends may be at most 10 minutes old:
+//   - fresh data is reused for 5 minutes (one Open-Meteo call per area every 5 minutes)
+//   - if Open-Meteo fails, the last data is still served until it is 10 minutes old
+//   10 (oldest data the server sends) + 5 (browser reload) = 15.
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const MAX_STALE_MS = 10 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 5000;
 
-// Used when the server's own location can't be detected (see location.service.js).
+// Used when the reader's location isn't known (permission refused or not supported).
 const DEFAULT_COORDS = {
-  latitude: 32.1844,
-  longitude: 34.8708,
-  cityName: 'רעננה, ישראל'
+  latitude: 32.0809,
+  longitude: 34.7806,
+  cityName: 'תל אביב-יפו (מיקום ברירת מחדל)'
 };
 
 // Hours ahead (relative to "now") shown in the "Today" list, and number of upcoming days.
@@ -189,14 +194,13 @@ async function fetchFromOpenMeteo(coords, fetchFn = globalThis.fetch) {
 
 /**
  * Returns weather data for a location from the cache or the external provider.
- * Concurrent callers for the same location share one request (stampede protection),
- * and stale cached data is served if the provider fails.
+ * Concurrent callers for the same location share one request (stampede protection).
+ * If the provider fails, cached data up to MAX_STALE_MS old is served; older data is not.
  */
-async function getWeather({ forceRefresh = false, fetchFn = globalThis.fetch, coords = DEFAULT_COORDS } = {}) {
+async function getWeather({ fetchFn = globalThis.fetch, coords = DEFAULT_COORDS } = {}) {
   const key = cacheKey(coords);
-  const cached = cache.get(key);
-  if (!forceRefresh && isCacheValid(coords)) {
-    return { ...cached.data, cached: true, stale: false };
+  if (isCacheValid(coords)) {
+    return { ...cache.get(key).data, cached: true, stale: false };
   }
 
   if (inFlight.has(key)) {
@@ -209,9 +213,9 @@ async function getWeather({ forceRefresh = false, fetchFn = globalThis.fetch, co
       setCachedData(freshData, Date.now(), coords);
       return { ...freshData, cached: false, stale: false };
     } catch (err) {
-      logger.error('[weather] Failed to fetch external weather data:', err.message);
+      logger.error('[weather] Weather provider request failed', err);
       const old = cache.get(key);
-      if (old) {
+      if (old && Date.now() - old.fetchedAt < MAX_STALE_MS) {
         return { ...old.data, cached: true, stale: true };
       }
       throw err;
@@ -231,6 +235,7 @@ module.exports = {
   setCachedData,
   isCacheValid,
   CACHE_TTL_MS,
+  MAX_STALE_MS,
   DEFAULT_COORDS,
   WMO_CODE_MAP
 };

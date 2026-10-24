@@ -20,4 +20,7 @@ const viewStatsSchema = new mongoose.Schema({
 // Unique: guarantees a single document per article per day.
 viewStatsSchema.index({ articleId: 1, dayUtc: 1 }, { unique: true });
 
+// The combined analytics report filters by date across all articles.
+viewStatsSchema.index({ dayUtc: 1 });
+
 module.exports = mongoose.model('ViewStats', viewStatsSchema);

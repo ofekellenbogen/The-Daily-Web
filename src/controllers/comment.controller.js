@@ -15,7 +15,7 @@ async function create(req, res) {
   if (req.isNewDevice) {
     throw new HttpError(403, 'DEVICE_REQUIRED', 'לא ניתן לזהות את הדפדפן. יש לאפשר עוגיות, לרענן את העמוד ולנסות שוב.');
   }
-  const comment = await commentService.createComment(req.params.id, req.body, req.deviceId);
+  const comment = await commentService.createComment(req.params.id, req.body, req.deviceId, req.user);
   res.status(201).json({ data: comment }); // 201 = Created
 }
 
