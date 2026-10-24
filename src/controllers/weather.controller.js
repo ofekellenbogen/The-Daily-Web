@@ -3,12 +3,14 @@ const weatherService = require('../services/weather.service');
 const locationService = require('../services/location.service');
 const logger = require('../utils/logger');
 
-// GET /api/weather?refresh=true
+// GET /api/weather?lat=32.1&lon=34.8&refresh=true   (all parameters optional)
 async function getWeather(req, res) {
+  // Invalid lat/lon -> 400 through the central error handler.
+  const browserLocation = locationService.parseBrowserLocation(req.query.lat, req.query.lon);
   try {
     const forceRefresh = req.query.refresh === 'true';
-    // Weather for the computer running the server (detected once a day, never throws).
-    const coords = await locationService.getServerLocation();
+    // The reader's location if the browser sent it, otherwise the server computer's location.
+    const coords = browserLocation || await locationService.getServerLocation();
     const weather = await weatherService.getWeather({ forceRefresh, coords });
     res.set('Cache-Control', 'public, max-age=60'); // browsers may reuse the answer for a minute
     return res.json({ success: true, weather });

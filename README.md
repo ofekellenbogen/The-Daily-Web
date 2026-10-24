@@ -98,7 +98,7 @@ src/
     admin.service.js              CRUD for users, comments and view statistics
     auth.service.js               login check, sessions
     weather.service.js            Open-Meteo client with a 14-minute cache
-    location.service.js           detects the server computer's location from its IP
+    location.service.js           reader's browser location, or the server's location from its IP
   middleware/
     auth.js                       loadUser, requireAuth, requireRole, sameOrigin (CSRF)
     deviceId.js                   anonymous device cookie for guests
@@ -233,12 +233,15 @@ new ──► draft ──submit──► pending ──approve──► publish
 * A **moving ticker** at the top of the home page (between the site header and "החדשות האחרונות"),
   using **Open-Meteo** (free, no API key or credit card). It shows current conditions, the next hours and
   the next days; it pauses on hover and stays still for users who prefer reduced motion.
-* **Location:** the weather is for the computer running the server. Its approximate location is found
-  from its public IP address (ipwho.is, free, no key), and the city name is translated to Hebrew with
-  Open-Meteo's geocoding API. This is detected once a day; if it fails, Raanana is used.
-* The **server** fetches the weather at most once every 14 minutes and shares the cached result
-  with all users (data is never more than 15 minutes old). If the service fails, the last data
-  is shown, or a friendly message - the rest of the site keeps working.
+* **Location:** the page first shows the weather for the server computer's location, then asks the
+  reader for permission to use their location. If allowed, the ticker switches to the reader's own
+  area ("המיקום שלך"). Only coordinates rounded to ~10 km are sent, never the exact position.
+  The server's location is found from its public IP address (ipwho.is, free, no key; approximate,
+  often Tel Aviv in Israel) with a Hebrew city name from Open-Meteo's geocoding API; if that fails, Raanana is used.
+* The **server** calls Open-Meteo at most once every 14 minutes **per ~10 km area** and shares that
+  cached result with every reader in the area (data is never more than 15 minutes old), so thousands
+  of readers cause only a few external requests. If the service fails, the last data is shown, or a
+  friendly message - the rest of the site keeps working.
 
 ### Errors, validation, performance and logs
 * All input is validated on the server (and the browser). Invalid data returns **400**, unknown
@@ -262,7 +265,7 @@ new ──► draft ──submit──► pending ──approve──► publish
 | GET | `/api/articles` | all | Feed page (`q`, `category`, `seen`, `sort`, `cursor`) |
 | GET | `/articles/:id` | all | Article page |
 | GET / POST | `/api/articles/:id/comments` | all | List / add comments |
-| GET | `/api/weather` | all | Weather data |
+| GET | `/api/weather` | all | Weather data (optional `lat`, `lon` of the reader, `refresh`) |
 | GET / POST | `/login` | all | Login form / log in |
 | POST | `/logout` | logged in | Log out |
 | GET | `/reporter`, `/editor` | reporter / editor | Workspaces |

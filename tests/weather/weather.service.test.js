@@ -119,3 +119,15 @@ test('serves stale cache when the provider fails, and throws when there is none'
     /Open-Meteo returned status 500/
   );
 });
+
+test('each area has its own cache entry', async () => {
+  let calls = 0;
+  const fetchFn = async () => { calls++; return forecastResponse(); };
+  const beerSheva = { latitude: 31.3, longitude: 34.8, cityName: 'המיקום שלך' };
+  await weatherService.getWeather({ fetchFn });
+  await weatherService.getWeather({ fetchFn, coords: beerSheva });
+  await weatherService.getWeather({ fetchFn, coords: beerSheva });
+  await weatherService.getWeather({ fetchFn });
+  assert.equal(calls, 2);
+  assert.equal(weatherService.isCacheValid(beerSheva), true);
+});

@@ -1,19 +1,41 @@
-// Finds the approximate location of the computer running the server, for the weather ticker.
+// Decides WHERE the weather ticker shows the weather for.
 //
-// How: the public IP address of this computer is looked up with ipwho.is (free, no API key),
-// which returns coordinates and a city name in English. Open-Meteo's geocoding API (the same
-// free provider as the weather) then gives the city name in Hebrew.
-//
-// IP location is approximate: it is the area of the internet provider, usually the right city
-// or a neighbouring one. It is detected once and kept for 24 hours, so all readers share one
-// location and one cached forecast. If detection fails, DEFAULT_COORDS is used and the
-// detection is retried after 10 minutes.
+// 1. Reader's location (preferred): the browser asks the reader for permission and sends
+//    ?lat=&lon= with the weather request (see public/js/weather.js and parseBrowserLocation).
+// 2. Server location (fallback, before permission or if the reader refuses): the public IP
+//    address of the computer running the server is looked up with ipwho.is (free, no API key),
+//    and Open-Meteo's geocoding API (same free provider as the weather) gives the Hebrew city name.
+//    IP location is only approximate (the internet provider's area, often Tel Aviv in Israel).
+//    It is detected once and kept for 24 hours. If detection fails, DEFAULT_COORDS is used and
+//    the detection is retried after 10 minutes.
 const logger = require('../utils/logger');
+const HttpError = require('../utils/HttpError');
 const { DEFAULT_COORDS } = require('./weather.service');
 
 const SUCCESS_TTL_MS = 24 * 60 * 60 * 1000;
 const FAILURE_TTL_MS = 10 * 60 * 1000;
 const TIMEOUT_MS = 5000;
+const BROWSER_LOCATION_NAME = 'המיקום שלך';
+
+// Reads the reader's location sent by the browser (?lat=32.1&lon=34.8).
+// Returns null when none was sent. Coordinates are rounded to 1 decimal (about 10 km):
+//   - privacy: the exact position is never used or stored
+//   - scaling: everyone in the same area shares one cached forecast
+function parseBrowserLocation(lat, lon) {
+  if (lat === undefined && lon === undefined) return null;
+  const latitude = Number(lat);
+  const longitude = Number(lon);
+  if (typeof lat !== 'string' || typeof lon !== 'string' || lat.trim() === '' || lon.trim() === '' ||
+      !Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+      Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+    throw new HttpError(400, 'INVALID_LOCATION', 'מיקום לא תקין');
+  }
+  return {
+    latitude: Math.round(latitude * 10) / 10,
+    longitude: Math.round(longitude * 10) / 10,
+    cityName: BROWSER_LOCATION_NAME
+  };
+}
 
 // The detection promise is cached, so simultaneous requests share one lookup.
 let cached = { promise: null, expiresAt: 0 };
@@ -71,4 +93,4 @@ function clearLocationCache() {
   cached = { promise: null, expiresAt: 0 };
 }
 
-module.exports = { getServerLocation, clearLocationCache };
+module.exports = { parseBrowserLocation, getServerLocation, clearLocationCache };
