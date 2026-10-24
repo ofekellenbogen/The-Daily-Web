@@ -109,7 +109,7 @@
 .analytics-timezone { color: var(--color-muted); font-size: 0.8rem; font-weight: 600; padding: 5px 10px; border: 1px solid var(--color-border); border-radius: 4px; }
 
 /* Filter form - Grid: article search | from | to | button */
-.analytics-filter { display: grid; grid-template-columns: minmax(220px, 1fr) 170px 170px auto; align-items: end; gap: 36px 18px; padding: 22px 24px 42px; background: var(--color-surface); border-block: 1px solid var(--color-border); }
+.analytics-filter { display: grid; grid-template-columns: minmax(220px, 1fr) 170px 170px; align-items: end; gap: 36px 18px; padding: 22px 24px 42px; background: var(--color-surface); border-block: 1px solid var(--color-border); }
 .analytics-filter > div { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .analytics-filter label { font-size: 0.8rem; font-weight: 600; color: #51575a; }
 .analytics-article-field { position: relative; }
@@ -238,3 +238,6 @@
 .analytics-report-grid:has(#analytics-history[hidden]) { grid-template-columns: minmax(0, 1fr); }
 @media (max-width: 900px) { .analytics-state-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .analytics-state-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .analytics-state-grid > .analytics-state-all { grid-column: 1 / -1; } .analytics-report-grid { padding: 16px; } }
+
+/* Use a clean Hebrew sans-serif face for statistics headings. */
+.analytics-page h1, .analytics-heading h2 { font-family: Arial, "Noto Sans Hebrew", sans-serif; font-weight: 700; }

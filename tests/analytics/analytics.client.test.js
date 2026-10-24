@@ -47,7 +47,7 @@ function setup(fetch, overviewFetch) {
       timers.clear();
       await Promise.all(callbacks.map((callback) => callback()));
     },
-    choose(index = 0) { elements['analytics-suggestions'].children[index].listeners.click(); }
+    choose(index = 0) { return elements['analytics-suggestions'].children[index].listeners.click(); }
   };
 }
 
@@ -71,10 +71,9 @@ test('search fetches only one page before rendering the selected article', async
   await page.search('Published');
   assert.deepEqual(requests, ['/api/analytics/articles?q=Published']);
   assert.equal(page.elements['analytics-suggestions'].children.length, 1);
-  page.choose();
   page.elements['analytics-start'].value = '2026-10-20';
   page.elements['analytics-end'].value = '2026-10-20';
-  await page.submit();
+  await page.choose();
   assert.match(requests[1], /articles\/first\?start=2026-10-20&end=2026-10-20/);
   assert.equal(page.elements['analytics-title'].textContent, 'News');
   assert.equal(page.elements['analytics-result'].hidden, false);
@@ -120,11 +119,9 @@ test('focus loads recent articles, keyboard selects them and typing invalidates 
   assert.equal(input.attributes['aria-activedescendant'], 'analytics-option-0');
   input.listeners.keydown({ key: 'Enter', preventDefault() {} });
   assert.equal(input.value, 'News');
-  assert.equal(page.elements['analytics-submit'].disabled, false);
   assert.equal(page.elements['analytics-suggestions'].hidden, true);
   input.value = 'Other';
   input.listeners.input();
-  assert.equal(page.elements['analytics-submit'].disabled, false);
   assert.equal(page.elements['analytics-result'].hidden, true);
 });
 
@@ -134,8 +131,7 @@ test('slower old analytics responses cannot overwrite a newer selection', async 
     ? Promise.resolve(response({ articles: [{ id: 'first', title: 'News' }], nextPage: null }))
     : new Promise((resolve) => pending.push(resolve)));
   await page.search('News');
-  page.choose();
-  const first = page.submit();
+  const first = page.choose();
   const second = page.submit();
   pending[1](response(data('Latest')));
   await second;
@@ -153,11 +149,11 @@ test('invalid ranges do not fetch and failed analytics requests hide stale resul
       : response({ error: { message: 'Server error' } }, false);
   });
   await page.search('News');
-  page.choose();
+  await page.choose();
   page.elements['analytics-start'].value = '2026-10-21';
   page.elements['analytics-end'].value = '2026-10-20';
   await page.submit();
-  assert.equal(requests, 1);
+  assert.equal(requests, 2);
   page.elements['analytics-start'].value = '2026-10-20';
   await page.submit();
   assert.equal(page.elements['analytics-status'].textContent, 'Server error');
@@ -177,11 +173,11 @@ test('failed article searches recover on typing and empty analytics are visible'
   await page.search('News');
   assert.equal(page.elements['analytics-search-status'].textContent, 'Network error');
   await page.search('News');
-  page.choose();
+  await page.choose();
   await page.submit();
   assert.equal(page.elements['analytics-result'].hidden, false);
   assert.ok(page.elements['analytics-status'].textContent.length > 0);
-  assert.equal(page.charts.length, 3);
+  assert.equal(page.charts.length, 4);
 });
 
 test('empty matches and Escape or blur keep suggestions closed despite late responses', async () => {
@@ -232,10 +228,28 @@ test('loads combined analytics on entry and restores it with the all-articles bu
   assert.equal(page.elements['analytics-states'].hidden, false);
   assert.equal(page.elements['analytics-history'].hidden, true);
   await page.search('News');
-  page.choose();
+  await page.choose();
   page.elements['analytics-overview'].listeners.click();
   await flush();
   assert.equal(page.elements['analytics-article'].value, '');
   assert.equal(page.elements['analytics-states'].hidden, false);
+  assert.equal(requests.length, 3);
+});
+
+
+test('changing either date automatically reloads the current report', async () => {
+  const requests = [];
+  const page = setup(async () => response({ articles: [{ id: 'first', title: 'News' }] }), async (url) => {
+    requests.push(url);
+    return response({ ...data(), article: null, counts: {}, articleCount: 0, publicationCount: 0 });
+  });
+  await flush();
+  page.elements['analytics-start'].value = '2026-10-20';
+  page.elements['analytics-end'].value = '2026-10-21';
+  await page.elements['analytics-start'].listeners.change();
+  assert.match(requests.at(-1), /start=2026-10-20&end=2026-10-21/);
+  page.elements['analytics-end'].value = '2026-10-22';
+  await page.elements['analytics-end'].listeners.change();
+  assert.match(requests.at(-1), /start=2026-10-20&end=2026-10-22/);
   assert.equal(requests.length, 3);
 });

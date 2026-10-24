@@ -19,7 +19,6 @@
   const searchStatus = document.getElementById('analytics-search-status');
   const startInput = document.getElementById('analytics-start');
   const endInput = document.getElementById('analytics-end');
-  const submitButton = document.getElementById('analytics-submit');
   const statusText = document.getElementById('analytics-status');
   const resultSection = document.getElementById('analytics-result');
 
@@ -96,10 +95,10 @@
     articleInput.value = article.title;
     // The input is valid again, because a real article was chosen from the list.
     articleInput.setCustomValidity('');
-    submitButton.disabled = false;
     clearTimeout(searchTimer);
     searchController?.abort();
     closeSuggestions();
+    return loadAnalytics();
   }
 
   // Builds one <li role="option"> in the suggestion list.
@@ -392,9 +391,9 @@
   // ===== Event listeners ===========================================================
   form.addEventListener('submit', loadAnalytics);
 
-  // Changing a date hides the old report until the user loads a new one.
-  startInput.addEventListener('change', resetReport);
-  endInput.addEventListener('change', resetReport);
+  // Refresh the report as soon as either date changes.
+  startInput.addEventListener('change', loadAnalytics);
+  endInput.addEventListener('change', loadAnalytics);
 
   articleInput.addEventListener('focus', () => {
     searchOpen = true;
@@ -415,7 +414,6 @@
     resetReport();
     // Typing clears the previous selection and restores the combined report.
     selectedArticleId = '';
-    submitButton.disabled = false;
     articleInput.setCustomValidity('');
     loadAnalytics();
     closeSuggestions();
