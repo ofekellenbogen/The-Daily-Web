@@ -50,7 +50,7 @@ async function main() {
     assert.match(await (await request(`/staff/articles/${id}`, 'GET', undefined, reporterCookie)).text(), /Unapproved/);
   } else {
     const article = await Article.create({ authorId: reporter._id, workingCopy: content });
-    assert.equal((await request('/editor/data', 'GET', undefined, editorCookie)).status, 200);
+    assert.equal((await request('/editor/users', 'GET', undefined, editorCookie)).status, 200);
     assert.equal((await request('/api/admin/users', 'GET', undefined, reporterCookie)).status, 403);
     const cases = [
       ['users', { username: 'verify.new', displayName: 'New user', role: 'reporter', password: 'verification-only' }, { username: 'verify.new', displayName: 'Changed', role: 'reporter', password: '' }],

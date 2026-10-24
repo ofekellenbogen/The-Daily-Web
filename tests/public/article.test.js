@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');
+const ejs = require('ejs');
+const path = require('node:path');
 const Article = require('../../src/models/Article');
 const articleService = require('../../src/modules/public/article.service');
 const commentsService = require('../../src/modules/comments/comments.service');
@@ -14,6 +16,18 @@ const {
   encodeCursor,
   decodeCursor
 } = require('../../src/modules/comments/comments.service');
+
+test('inline comment moderation is rendered only for editors and uses public comment IDs', async () => {
+  for (const currentUser of [null, { role: 'reporter' }, { role: 'editor' }]) {
+    const html = await ejs.renderFile(path.join(__dirname, '../../views/partials/comments.ejs'), {
+      currentUser, articleId: 'article', commentCount: 1, formatDate: () => 'today',
+      comments: { data: [{ id: 'public-comment-id', authorName: 'Reader', body: '<script>unsafe</script>', createdAt: '2026-10-24' }], meta: {} }
+    });
+    assert.ok(html.includes('data-delete-comment="public-comment-id"') === (currentUser?.role === 'editor'));
+    assert.ok(html.includes(`data-can-moderate="${currentUser?.role === 'editor'}"`));
+    assert.doesNotMatch(html, /<script>unsafe/);
+  }
+});
 
 test('article media supplies a local fallback and preserves accessible alt text', () => {
   assert.deepEqual(getArticleMedia({ title: 'News', imageUrl: '', imageAlt: '' }), {

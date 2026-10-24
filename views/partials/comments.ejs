@@ -1,5 +1,5 @@
 <section class="comments" id="comments" aria-labelledby="comments-title"
-  data-article-id="<%= articleId %>" data-next-cursor="<%= comments.meta.nextCursor || '' %>">
+  data-article-id="<%= articleId %>" data-can-moderate="<%= locals.currentUser?.role === 'editor' %>" data-next-cursor="<%= comments.meta.nextCursor || '' %>">
   <h2 id="comments-title">תגובות (<span id="comments-count"><%= commentCount %></span>)</h2>
 
   <form class="comment-form" id="comment-form" novalidate>
@@ -28,6 +28,9 @@
           <time datetime="<%= comment.createdAt %>"><%= formatDate(comment.createdAt) %></time>
         </header>
         <p class="comment__body"><%= comment.body %></p>
+        <% if (locals.currentUser?.role === 'editor') { %>
+          <button type="button" class="button button--secondary" data-delete-comment="<%= comment.id %>">מחיקת תגובה</button>
+        <% } %>
       </li>
     <% } %>
   </ol>
