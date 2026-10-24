@@ -52,6 +52,13 @@
 .workspace-page { padding-top: 32px; padding-bottom: 32px; }
 .workspace-controls { grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr); }
 .workspace-controls .field { min-width: 0; }
+.users-controls { grid-template-columns: minmax(0, 1fr) auto auto; align-items: end; }
+.users-controls .field { min-width: 0; }
+.users-controls > .button { min-height: 44px; border-radius: 4px; }
+@media (max-width: 639px) {
+  .feed-controls.users-controls { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .users-controls .field { grid-column: 1 / -1; }
+}
 #workspace-status { min-height: 1.5em; color: var(--color-muted); }
 #workspace-status.form-error { color: var(--color-primary-dark); }
 @media (max-width: 639px) {
