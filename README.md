@@ -43,7 +43,7 @@ npm start
 
 Open http://localhost:3000. `PORT` defaults to `3000`; `MONGODB_DB` defaults to `daily-web`. Use `npm run dev` to restart automatically after code changes.
 
-For the demo feed (520 articles, comments and view statistics), run `npm run seed:public`. It uses existing reporter accounts named `dana.levi`, `yossi.cohen`, `maya.mizrahi`, or `amir.peretz`, and an existing editor. At least one of those reporters and one editor must exist. It replaces those reporters' articles and related demo data without creating or changing users or passwords. Keep `.env` out of Git.
+The existing database articles are preserved; there are no article generation or replacement seed commands. To create or update articles, use the staff workflow in the application. Reporters can draft and submit articles for review, and editors can edit and approve publication. Keep `.env` out of Git.
 
 ## Login and permissions
 

@@ -34,11 +34,17 @@
         </p>
       </header>
 
-      <% if (article.imageUrl) { %>
-        <figure class="article__figure">
-          <img src="<%= article.imageUrl %>" alt="" width="640" height="360">
-        </figure>
-      <% } %>
+      <figure class="article__figure">
+        <img src="<%= article.imageUrl %>" alt="<%= article.imageAlt %>" width="640" height="360">
+        <% if (article.imageCredit || article.imageSourceUrl || article.imageLicense) { %>
+          <figcaption class="article__image-credit">
+            <span>תמונת המחשה</span>
+            <% if (article.imageCredit) { %><span>קרדיט: <%= article.imageCredit %></span><% } %>
+            <% if (article.imageSourceUrl) { %><a href="<%= article.imageSourceUrl %>" target="_blank" rel="noopener noreferrer">מקור התמונה</a><% } %>
+            <% if (article.imageLicenseUrl) { %><a href="<%= article.imageLicenseUrl %>" target="_blank" rel="license noopener noreferrer"><%= article.imageLicense || 'פרטי רישיון' %></a><% } else if (article.imageLicense) { %><span><%= article.imageLicense %></span><% } %>
+          </figcaption>
+        <% } %>
+      </figure>
 
       <div class="article__body">
         <% for (const paragraph of article.paragraphs) { %>

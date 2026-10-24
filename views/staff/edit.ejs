@@ -30,10 +30,20 @@
             <option value="<%= value %>" <%= content.category === value ? 'selected' : '' %>><%= label %></option>
           <% } %>
         </select>
-        <label for="article-image">כתובת תמונה</label>
-        <input id="article-image" name="imageUrl" type="url" maxlength="2000" dir="ltr" value="<%= content.imageUrl || '' %>">
+        <label for="article-image">כתובת תמונה (HTTP(S) או איור מערכת)</label>
+        <input id="article-image" name="imageUrl" type="text" inputmode="url" maxlength="2000" dir="ltr" value="<%= content.imageUrl || '' %>">
+        <label for="article-image-alt">תיאור נגיש לתמונה (נדרש לפרסום)</label>
+        <input id="article-image-alt" name="imageAlt" maxlength="250" value="<%= content.imageAlt || '' %>">
+        <label for="article-image-credit">קרדיט לתמונה</label>
+        <input id="article-image-credit" name="imageCredit" maxlength="250" value="<%= content.imageCredit || '' %>">
+        <label for="article-image-source">קישור למקור התמונה</label>
+        <input id="article-image-source" name="imageSourceUrl" type="url" maxlength="2000" dir="ltr" value="<%= content.imageSourceUrl || '' %>">
+        <label for="article-image-license">רישיון התמונה</label>
+        <input id="article-image-license" name="imageLicense" maxlength="100" value="<%= content.imageLicense || '' %>">
+        <label for="article-image-license-url">קישור לרישיון</label>
+        <input id="article-image-license-url" name="imageLicenseUrl" type="url" maxlength="2000" dir="ltr" value="<%= content.imageLicenseUrl || '' %>">
           <figure class="article-image-preview" id="draft-image-preview" <%= content.imageUrl ? '' : 'hidden' %>>
-            <img <% if (content.imageUrl) { %>src="<%= content.imageUrl %>"<% } %> alt="תצוגה מקדימה של תמונת הכתבה" loading="lazy">
+          <img <% if (content.imageUrl) { %>src="<%= content.imageUrl %>"<% } %> alt="<%= content.imageAlt || 'תצוגה מקדימה של תמונת הכתבה' %>" loading="lazy">
             <figcaption>תצוגה מקדימה של תמונת גרסת העבודה</figcaption>
           </figure>
         <button class="button" type="submit">שמירת כתבה</button>
@@ -61,8 +71,12 @@
           <h3><%= article.publishedVersion.title %></h3>
           <p><%= article.publishedVersion.summary %></p>
           <% if (article.publishedVersion.imageUrl) { %>
-            <img class="published-image" src="<%= article.publishedVersion.imageUrl %>" alt="<%= article.publishedVersion.title %>" loading="lazy">
+            <img class="published-image" src="<%= article.publishedVersion.imageUrl %>" alt="<%= article.publishedVersion.imageAlt || article.publishedVersion.title %>" loading="lazy">
             <p class="published-body">תמונה: <%= article.publishedVersion.imageUrl %></p>
+            <% if (article.publishedVersion.imageCredit || article.publishedVersion.imageLicense) { %>
+              <p class="published-body">קרדיט: <%= article.publishedVersion.imageCredit %> · <%= article.publishedVersion.imageLicense %></p>
+              <% if (article.publishedVersion.imageSourceUrl) { %><p class="published-body">מקור: <%= article.publishedVersion.imageSourceUrl %></p><% } %>
+            <% } %>
           <% } %>
           <div class="approved-snapshot-card__body">
             <p class="published-body"><%= article.publishedVersion.body %></p>
