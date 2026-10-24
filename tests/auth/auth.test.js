@@ -297,6 +297,36 @@ test('guests can load the generated article illustration endpoint', async () => 
   assert.match(svg, /Summary/);
 });
 
+test('editors can create owned articles through both creation endpoints and publish them', async () => {
+  const cookie = await login('editor');
+  const workspace = await (await request('/editor', { cookie })).text();
+  assert.match(workspace, /href="\/staff\/articles\/new"/);
+  const page = await request('/staff/articles/new', { cookie });
+  assert.equal(page.status, 200);
+  const html = await page.text();
+  assert.match(html, /data-action="approve"/);
+  assert.doesNotMatch(html, /data-action="delete"|data-action="submit"/);
+  const input = { title: 'Editor authored article', summary: 'Summary',
+    body: 'Editor content', category: 'tech', imageUrl: '' };
+  const created = await request('/api/staff/articles', { method: 'POST', cookie, body: input });
+  assert.equal(created.status, 201);
+  const { id } = await created.json();
+  assert.equal(String(articles.get(id).authorId), String(users[2]._id));
+  const draftId = String(new Article()._id);
+  const draftInput = { ...input, title: 'Editor autosaved article' };
+  assert.equal((await request(`/api/staff/drafts/${draftId}`, {
+    method: 'PUT', cookie, body: draftInput
+  })).status, 200);
+  assert.equal(String(articles.get(draftId).authorId), String(users[2]._id));
+  assert.equal((await request(`/api/staff/articles/${draftId}/approve`, {
+    method: 'POST', cookie
+  })).status, 200);
+  assert.equal(articles.get(draftId).workflowStatus, 'published');
+  assert.equal((await request('/api/staff/articles', {
+    method: 'POST', cookie, body: { ...input, authorId: String(users[0]._id) }
+  })).status, 400);
+});
+
 test('reporters create owned drafts and cannot forge authors, roles or publication fields', async () => {
   const cookie = await login();
   const created = await request('/api/staff/articles', { method: 'POST', cookie, body: content });
@@ -564,18 +594,30 @@ test('editor publication requires complete content and valid state transitions',
   assert.equal(article.publicationHistory.length, 1);
 });
 
-test('article publication requires a featured image and its accessible description', async () => {
+test('articles can be submitted and published without an image or description', async () => {
   const cookie = await login('editor');
-  for (const [field, value] of [['imageUrl', ''], ['imageAlt', '  ']]) {
+  const reporterCookie = await login();
+  for (const imageUrl of ['', 'https://example.com/article.jpg']) {
     const article = storeArticle({
       authorId: users[0]._id,
-      workingCopy: { ...content, [field]: value },
-      workflowStatus: 'pending'
+      workingCopy: { ...content, imageUrl, imageAlt: '' },
+      workflowStatus: 'draft'
     });
-    assert.equal((await request(`/api/staff/articles/${article._id}/approve`, { method: 'POST', cookie })).status, 400);
-    assert.equal(article.publishedVersion, null);
-    assert.equal(article.workflowStatus, 'pending');
+    const input = { title: `Optional image ${imageUrl}`, summary: content.summary,
+      body: content.body, category: content.category, imageUrl };
+    assert.equal((await request(`/api/staff/drafts/${article._id}`, {
+      method: 'PUT', cookie: reporterCookie, body: input
+    })).status, 200);
+    assert.equal((await request(`/api/staff/articles/${article._id}/submit`, {
+      method: 'POST', cookie: reporterCookie
+    })).status, 200);
+    assert.equal((await request(`/api/staff/articles/${article._id}/approve`, { method: 'POST', cookie })).status, 200);
+    assert.equal(article.workflowStatus, 'published');
+    const html = await (await request(`/articles/${article._id}`)).text();
+    assert.ok(html.includes(`src="${imageUrl || '/images/article-placeholder.svg'}"`));
+    if (imageUrl) assert.ok(html.includes(`alt="${input.title}"`));
   }
+  assert.equal((await request('/images/article-placeholder.svg')).status, 200);
 });
 
 test('editors save and publish drafts, returned articles and published updates without reporter submission', async () => {
@@ -618,6 +660,40 @@ test('editors save and publish drafts, returned articles and published updates w
     assert.equal(article.editorNote, '');
     assert.match(await (await request(`/articles/${article._id}`)).text(), new RegExp(update.title));
     assert.equal((await request(`${path}/approve`, { method: 'POST', cookie })).status, 409);
+  }
+});
+
+test('editing without attribution inputs preserves credits through autosave and publication', async () => {
+  const cookie = await login('editor');
+  const attribution = {
+    imageCredit: 'Original creator', imageSourceUrl: 'https://example.com/source',
+    imageLicense: 'CC BY 4.0', imageLicenseUrl: 'https://creativecommons.org/licenses/by/4.0/'
+  };
+  const article = storeArticle({
+    authorId: users[0]._id, workingCopy: { ...content, ...attribution },
+    workflowStatus: 'published',
+    publishedVersion: { ...content, ...attribution, version: 1, publishedAt: new Date() }
+  });
+  const html = await (await request(`/staff/articles/${article._id}`, { cookie })).text();
+  for (const field of Object.keys(attribution)) assert.ok(!html.includes(`name="${field}"`));
+  assert.match(html, /name="imageUrl"/);
+  assert.doesNotMatch(html, /name="imageAlt"/);
+  const input = { ...content, title: 'Updated article' };
+  for (const field of Object.keys(attribution)) delete input[field];
+  assert.equal((await request(`/api/staff/drafts/${article._id}`, {
+    method: 'PUT', cookie, body: input
+  })).status, 200);
+  for (const [field, value] of Object.entries(attribution)) {
+    assert.equal(article.workingCopy[field], value);
+    assert.equal(article.publishedVersion[field], value);
+  }
+  assert.equal((await request(`/api/staff/articles/${article._id}/approve`, {
+    method: 'POST', cookie
+  })).status, 200);
+  const published = await (await request(`/articles/${article._id}`)).text();
+  for (const [field, value] of Object.entries(attribution)) {
+    assert.equal(article.publishedVersion[field], value);
+    assert.ok(published.includes(value));
   }
 });
 

@@ -6,6 +6,7 @@ const script = readFileSync(require.resolve('../../public/js/autosave.js'), 'utf
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function setup(fetch, storage = new Map(), fresh = false, options = {}) {
   const handlers = {}, events = {};
+  let reloads = 0;
   const fieldset = { disabled: false };
   const form = { elements: {}, querySelector: () => fieldset, after() {},
     addEventListener: (name, fn) => { handlers[name] = fn; } };
@@ -17,18 +18,43 @@ function setup(fetch, storage = new Map(), fresh = false, options = {}) {
     role: options.role || 'reporter', workflowStatus: options.workflowStatus || 'draft' },
     querySelector: () => ({}), querySelectorAll: () => Object.values(actions) };
   let content = {
-    title: 'First', summary: '', body: '', category: 'tech', imageUrl: '', imageAlt: '',
-    imageCredit: '', imageSourceUrl: '', imageLicense: '', imageLicenseUrl: ''
+    title: 'First', summary: '', body: '', category: 'tech', imageUrl: ''
   };
+  for (const name of Object.keys(content)) {
+    form.elements[name] = {
+      get value() { return content[name]; },
+      set value(value) { content[name] = value; }
+    };
+  }
   const elements = { 'article-editor': editor, 'article-form': form, 'staff-status': status, 'article-state': badge };
   vm.runInNewContext(script, {
     document: { getElementById: id => elements[id] }, fetch, crypto: require('node:crypto').webcrypto,
     FormData: function () { return Object.entries(content); },
     localStorage: { getItem: key => storage.get(key) || null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) },
-    window: { addEventListener: (name, fn) => { events[name] = fn; }, setInterval() {}, history: { replaceState() {} } }
+    window: { addEventListener: (name, fn) => { events[name] = fn; }, setInterval() {}, history: { replaceState() {} },
+      location: { reload() { reloads += 1; } } }
   });
-  return { handlers, events, storage, status, editor, actions, change(title) { content.title = title; handlers.input(); } };
+  return { handlers, events, storage, status, editor, actions, get reloads() { return reloads; },
+    change(title) { content.title = title; handlers.input(); } };
 }
+
+test('old browser backups restore editable fields without accessing removed attribution inputs', async () => {
+  const requests = [];
+  const storage = new Map([['dailyweb:draft:writer:123456789012345678901234', JSON.stringify({
+    content: { title: 'Recovered draft', imageAlt: 'Old description',
+      imageCredit: 'Existing creator', imageLicense: 'CC BY 4.0' }
+  })]]);
+  const page = setup(async (url, options) => {
+    requests.push(JSON.parse(options.body));
+    return { ok: true, json: async () => ({ workflowStatus: 'draft' }) };
+  }, storage);
+  await tick();
+  assert.equal(requests[0].title, 'Recovered draft');
+  assert.equal(Object.hasOwn(requests[0], 'imageCredit'), false);
+  assert.equal(Object.hasOwn(requests[0], 'imageLicense'), false);
+  assert.equal(Object.hasOwn(requests[0], 'imageAlt'), false);
+  assert.equal(page.storage.size, 0);
+});
 
 test('editors can publish from draft and returned states, and after autosaving a published update', async () => {
   for (const workflowStatus of ['draft', 'returned', 'published']) {
@@ -59,6 +85,7 @@ test('editors can publish from draft and returned states, and after autosaving a
     assert.equal(page.editor.dataset.workflowStatus, 'published');
     assert.equal(page.actions.approve.hidden, true);
     assert.equal(page.actions.delete.hidden, false);
+    assert.equal(page.reloads, 1);
   }
 });
 
@@ -76,6 +103,17 @@ test('a failed editor save prevents publication and keeps publish available for 
   assert.equal(page.actions.approve.disabled, false);
   assert.match(page.status.textContent, /offline/);
   assert.equal(page.storage.size, 1);
+  assert.equal(page.reloads, 0);
+});
+
+test('failed publication does not reload the page', async () => {
+  const page = setup(async (url, options) => options.method === 'PUT'
+    ? { ok: true, json: async () => ({ workflowStatus: 'draft' }) }
+    : { ok: false, status: 400, json: async () => ({ error: { message: 'Publication failed' } }) },
+  new Map(), false, { role: 'editor', actions: ['approve'] });
+  await page.actions.approve.click();
+  assert.equal(page.reloads, 0);
+  assert.equal(page.status.textContent, 'Publication failed');
 });
 
 test('autosave serializes requests and saves the latest text typed during an in-flight save', async () => {

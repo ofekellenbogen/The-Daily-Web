@@ -28,7 +28,7 @@
       </div>
       <noscript><button class="button" type="submit">חיפוש וסינון</button></noscript>
     </form>
-    <% if (currentUser.role === 'reporter') { %>
+    <% if (['reporter', 'editor'].includes(currentUser.role)) { %>
       <a class="button" href="/staff/articles/new">יצירת כתבה חדשה</a>
     <% } %>
     <p id="workspace-status" role="status" aria-live="polite"><%= articles.length ? '' : 'אין עדיין כתבות להצגה.' %></p>
