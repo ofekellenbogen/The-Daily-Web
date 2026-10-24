@@ -1,65 +1,32 @@
-<%# Weather widget partial, included in the sidebar of public/home.ejs. Receives no variables.
-    The markup is an empty shell; /js/weather.js fetches GET /api/weather and fills the ids below. %>
-<section class="weather-card" id="weather-widget" aria-labelledby="weather-card-heading">
-  <div class="weather-card__top">
-    <h2 class="weather-card__location" id="weather-card-heading">
-      <svg class="weather-card__pin" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
-      <span id="weather-city">רעננה, ישראל</span>
-    </h2>
-    <button type="button" class="weather-card__refresh" id="weather-refresh" aria-label="רענון נתוני מזג אוויר" title="רענון">
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>
-    </button>
-  </div>
+<%# Weather ticker partial, included at the top of public/home.ejs (between the site header and
+    the "החדשות האחרונות" heading). Receives no variables.
+    The markup is an empty shell; /js/weather.js fetches GET /api/weather and fills #weather-track
+    with the weather items. The CSS animation (.weather-ticker__track in public.css) moves them. %>
+<section class="weather-ticker" id="weather-widget" aria-labelledby="weather-ticker-label">
+  <%# Fixed label on the right side of the strip. %>
+  <h2 class="weather-ticker__label" id="weather-ticker-label">
+    <span aria-hidden="true">🌤️</span>
+    <span>מזג אוויר</span>
+    <span class="weather-ticker__city" id="weather-city">רעננה, ישראל</span>
+  </h2>
 
-  <%# aria-live: screen readers announce loading -> data / error changes made by weather.js.
-      Three states toggled with "hidden": loading, details, error. %>
-  <div class="weather-card__body" aria-live="polite">
-    <p class="weather-card__loading" id="weather-loading">טוען נתוני מזג אוויר...</p>
+  <%# The moving part. aria-live announces loading -> data / error changes to screen readers.
+      Three states toggled with "hidden": loading, details (the moving track), error. %>
+  <div class="weather-ticker__viewport" aria-live="polite">
+    <p class="weather-ticker__message" id="weather-loading">טוען נתוני מזג אוויר...</p>
 
-    <div class="weather-card__details" id="weather-details" hidden>
-      <div class="weather-card__current">
-        <span class="weather-card__icon" id="weather-icon" aria-hidden="true">☀️</span>
-        <div>
-          <p class="weather-card__temp"><span id="weather-temp">--</span><span class="weather-card__unit">°C</span></p>
-          <p class="weather-card__desc" id="weather-desc">--</p>
-        </div>
-      </div>
-
-      <p class="weather-card__range">
-        <span>מורגש כ-<span id="weather-feels">--</span>°</span>
-        <span class="weather-card__hi-lo">
-          <span title="מקסימום">↑ <span id="weather-max">--</span>°</span>
-          <span title="מינימום">↓ <span id="weather-min">--</span>°</span>
-        </span>
-      </p>
-
-      <dl class="weather-card__stats">
-        <div><dt>משקעים</dt><dd id="weather-precip">--</dd></div>
-        <div><dt>רוח</dt><dd id="weather-wind">--</dd></div>
-        <div><dt>לחות</dt><dd id="weather-humidity">--</dd></div>
-      </dl>
-
-      <%# Hourly and daily forecast lists are built by weather.js. %>
-      <h3 class="weather-card__heading">היום</h3>
-      <ul class="weather-card__hourly" id="weather-hourly"></ul>
-
-      <ul class="weather-card__daily" id="weather-daily"></ul>
-
-      <p class="weather-card__updated">
-        עודכן: <time id="weather-updated-time">--</time>
-        <span id="weather-stale-badge" class="weather-card__badge" hidden>נתונים שמורים</span>
-      </p>
+    <div class="weather-ticker__details" id="weather-details" hidden>
+      <%# weather.js puts the items here twice (the copy is aria-hidden) so the loop has no gap. %>
+      <div class="weather-ticker__track" id="weather-track"></div>
     </div>
 
-    <div class="weather-card__error" id="weather-error" hidden>
-      <p id="weather-error-msg">מידע מזג האוויר אינו זמין כעת</p>
-      <button type="button" class="weather-card__retry" id="weather-retry">נסו שוב</button>
-    </div>
+    <p class="weather-ticker__message" id="weather-error" hidden>
+      <span id="weather-error-msg">מידע מזג האוויר אינו זמין כעת</span>
+      <button type="button" class="weather-ticker__retry" id="weather-retry">נסו שוב</button>
+    </p>
   </div>
 
-  <%# Decorative city skyline (aria-hidden, ignored by screen readers). %>
-  <svg class="weather-card__skyline" viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true">
-    <path fill="#1f3b57" fill-opacity=".85" d="M0 70V52h14V40h10v12h8V30h8V18h6v12h6v14h12V36h10v16h8V44h14V26h8V12h4v14h8v22h10V38h12v14h10V46h14V32h10V20h4v12h10v18h12V42h14v10h12V36h10V24h8v14h10v14h12V44h12v26z"/>
-    <path fill="#0f2236" fill-opacity=".9" d="M0 70V58h20V50h12v8h16V54h18V46h10v12h22V52h16V44h12v14h20V54h18V48h14v10h22V50h18V42h10v16h20V56h16v14z"/>
-  </svg>
+  <button type="button" class="weather-ticker__refresh" id="weather-refresh" aria-label="רענון נתוני מזג אוויר" title="רענון">
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>
+  </button>
 </section>

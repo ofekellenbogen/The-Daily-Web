@@ -84,7 +84,7 @@ src/
     staff.routes.js               reporter and editor workspace + article API
     analytics.routes.js           Impact Analytics (editors)
     admin.routes.js               user / comment / stats management (editors)
-    weather.routes.js             weather widget API
+    weather.routes.js             weather ticker API
   controllers/                  Request handlers (the "C" in MVC), one per area
   services/                     Business logic
     feed.service.js               home feed: search, filters, sorting, infinite scroll
@@ -110,14 +110,14 @@ src/
     logger.js                     logs to the console and to logs/app.log
 
 views/                          EJS templates (the "V" in MVC), Hebrew, right-to-left
-  public/home.ejs                 home page with feed and weather sidebar
+  public/home.ejs                 home page: weather ticker + news feed
   public/article.ejs              full article (rendered on the server for SEO) + comments
   auth/login.ejs                  login form
   staff/workspace.ejs             reporter / editor article list
   staff/article-editor.ejs        create / edit an article
   staff/analytics.ejs             Impact Analytics page
   staff/users.ejs                 user management
-  partials/                       shared header, footer, <head>, comments, weather widget
+  partials/                       shared header, footer, <head>, comments, weather ticker
   error.ejs                       error page
 
 public/                         Static files sent to the browser as-is
@@ -128,7 +128,7 @@ public/                         Static files sent to the browser as-is
   js/article-editor.js            autosave, workflow buttons, image preview
   js/analytics.js                 article picker and Chart.js graph
   js/users.js                     user management table and form
-  js/weather.js                   weather widget
+  js/weather.js                   moving weather ticker
   images/                         placeholder article image
 
 tests/                          Automated tests (Node's built-in test runner, MongoDB is mocked)
@@ -228,8 +228,10 @@ new ──► draft ──submit──► pending ──approve──► publish
 | Comments         | `/api/admin/comments`, public create; editors delete from the article page.             |
 | View statistics  | `/api/admin/stats`. Search by article id.                                               |
 
-### Weather widget
-* Shown in the home page sidebar, using **Open-Meteo** (free, no API key or credit card).
+### Weather ticker
+* A **moving ticker** at the top of the home page (between the site header and "החדשות האחרונות"),
+  using **Open-Meteo** (free, no API key or credit card). It shows current conditions, the next hours and
+  the next days; it pauses on hover and stays still for users who prefer reduced motion.
 * The **server** fetches the weather at most once every 14 minutes and shares the cached result
   with all users (data is never more than 15 minutes old). If the service fails, the last data
   is shown, or a friendly message - the rest of the site keeps working.

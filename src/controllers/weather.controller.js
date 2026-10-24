@@ -1,4 +1,4 @@
-// Weather widget API (used by public/js/weather.js in the home page sidebar).
+// Weather ticker API (used by public/js/weather.js at the top of the home page).
 const weatherService = require('../services/weather.service');
 const logger = require('../utils/logger');
 

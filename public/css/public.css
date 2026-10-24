@@ -1,11 +1,11 @@
 /* =====================================================================
    public.css - the public news site: home feed (views/public/home.ejs),
-   article page + comments (views/public/article.ejs) and the weather widget.
+   article page + comments (views/public/article.ejs) and the weather ticker.
    staff/workspace.ejs and staff/users.ejs also load it to reuse the
    .feed-heading / .feed-controls / .field styles.
-   Responsive: feed cards use Flexbox (flex-wrap), filters and the home
-   layout use CSS Grid. Breakpoints: mobile < 640px, tablet 640-959px,
-   desktop >= 960px; the weather sidebar moves above the feed at <= 900px.
+   Responsive: feed cards use Flexbox (flex-wrap), filters use CSS Grid,
+   the weather ticker is a Flexbox row. Breakpoints: mobile < 640px,
+   tablet 640-959px, desktop >= 960px.
    ===================================================================== */
 
 /* ===== Feed page & heading ===== */
@@ -410,93 +410,106 @@
   }
 }
 
-/* ===== Home layout (Grid): feed + 300px weather sidebar; the sidebar sits on the left in RTL ===== */
-.home-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 32px;
-  align-items: start;
-}
-.home-layout__main { min-width: 0; }
-
-/* sticky: the weather card stays visible while scrolling the feed (desktop). */
-.home-layout__sidebar { position: sticky; top: 16px; }
-
-/* ===== Weather card (views/partials/weather.ejs + /js/weather.js) ===== */
-.weather-card {
-  position: relative;
+/* ===== Weather ticker (views/partials/weather.ejs + /js/weather.js) =====
+   A strip at the top of the home page: fixed label | moving weather items | refresh button (Flexbox row).
+   The items move with a CSS animation; weather.js puts them in the track twice, so when the track
+   has moved by exactly half its width (one copy) the animation restarts and the loop looks endless. */
+.weather-ticker {
+  display: flex;
+  align-items: center;
+  margin-bottom: 28px;
   overflow: hidden;
-  min-height: 560px;
-  padding: 20px 18px 96px;
   color: #fff;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #3f7fc1 0%, #5b97cf 38%, #8db4d6 70%, #e0a56b 100%);
-  box-shadow: 0 6px 22px rgba(30, 70, 120, 0.25);
+  background: linear-gradient(90deg, #2f6aa6, #4a8bc8);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
-.weather-card > *:not(.weather-card__skyline) { position: relative; z-index: 1; }
 
-/* Card header: city + refresh button */
-.weather-card__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.weather-card__location { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 0.95rem; font-weight: 600; }
-.weather-card__refresh {
-  display: grid; place-items: center; width: 30px; height: 30px; padding: 0;
-  color: #fff; background: rgba(255, 255, 255, 0.16); border: 0; border-radius: 50%; cursor: pointer;
+.weather-ticker__label {
+  display: flex;
+  flex-shrink: 0; /* the label never shrinks or moves */
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: rgba(0, 0, 0, 0.18);
+}
+.weather-ticker__city { font-weight: 400; opacity: 0.9; }
+
+/* The visible window; anything outside it is hidden. Faded edges make items appear smoothly. */
+.weather-ticker__viewport {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+}
+.weather-ticker__message { margin: 0; padding: 10px 14px; font-size: 0.88rem; white-space: nowrap; }
+
+/* The moving row. width: max-content keeps all items on one line. */
+.weather-ticker__track {
+  display: flex;
+  width: max-content;
+  animation: weather-ticker-scroll 45s linear infinite;
+}
+/* Pause while the mouse is over the strip or a keyboard user focuses inside it. */
+.weather-ticker:hover .weather-ticker__track,
+.weather-ticker:focus-within .weather-ticker__track { animation-play-state: paused; }
+
+/* One copy of the items. padding-inline-end equals the gap, so the join between the copies looks the same. */
+.weather-ticker__group {
+  display: flex;
+  gap: 32px;
+  margin: 0;
+  padding: 10px 0;
+  padding-inline-end: 32px;
+  list-style: none;
+}
+.weather-ticker__item { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; white-space: nowrap; }
+.weather-ticker__item strong { font-size: 1rem; }
+.weather-ticker__badge { padding: 0 6px; font-size: 0.72rem; border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 4px; }
+
+/* RTL page: the track starts on the right and moves right by one copy, so new items enter from the left. */
+@keyframes weather-ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(50%); }
+}
+
+.weather-ticker__refresh,
+.weather-ticker__retry {
+  flex-shrink: 0;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.16);
+  border: 0;
+}
+.weather-ticker__refresh {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin: 0 8px;
+  padding: 0;
+  border-radius: 50%;
   transition: background 0.2s ease, transform 0.3s ease;
 }
-.weather-card__refresh:hover:not(:disabled) { background: rgba(255, 255, 255, 0.28); transform: rotate(90deg); }
-.weather-card__refresh:disabled { opacity: 0.5; cursor: not-allowed; }
-.weather-card__refresh:focus-visible, .weather-card__retry:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.weather-ticker__refresh:hover:not(:disabled) { background: rgba(255, 255, 255, 0.3); transform: rotate(90deg); }
+.weather-ticker__refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+.weather-ticker__retry { margin-inline-start: 10px; padding: 2px 12px; font-size: 0.82rem; border-radius: 4px; }
+.weather-ticker__refresh:focus-visible,
+.weather-ticker__retry:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
-/* Loading / current conditions / hi-lo range */
-.weather-card__loading { margin: 40px 0; text-align: center; font-size: 0.9rem; opacity: 0.9; }
-
-.weather-card__current { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
-.weather-card__icon { font-size: 3.6rem; line-height: 1; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.18)); }
-.weather-card__temp { margin: 0; font-size: 3.6rem; font-weight: 700; line-height: 1; letter-spacing: -1px; }
-.weather-card__unit { font-size: 1.5rem; font-weight: 500; margin-inline-start: 2px; vertical-align: top; }
-.weather-card__desc { margin: 4px 0 0; font-size: 1rem; opacity: 0.95; }
-
-.weather-card__range { display: flex; flex-direction: column; gap: 2px; margin: 16px 0 14px; font-size: 0.9rem; }
-.weather-card__hi-lo { display: flex; gap: 14px; font-size: 0.85rem; opacity: 0.95; }
-
-/* Precipitation / wind / humidity - 3 Grid columns */
-.weather-card__stats {
-  display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 0 18px; padding: 10px 6px;
-  text-align: center; background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 10px; backdrop-filter: blur(4px);
-}
-.weather-card__stats dt { font-size: 0.7rem; opacity: 0.85; }
-.weather-card__stats dd { margin: 2px 0 0; font-size: 0.85rem; font-weight: 600; }
-
-/* Hourly and daily forecast rows (li built by weather.js) - Grid: label | icon | temperature */
-.weather-card__heading { margin: 0 0 6px; font-size: 0.95rem; font-weight: 600; }
-.weather-card__hourly, .weather-card__daily { margin: 0; padding: 0; list-style: none; }
-.weather-card__daily { margin-top: 14px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.25); }
-.weather-card__hourly li, .weather-card__daily li {
-  display: grid; grid-template-columns: 1fr 32px auto; align-items: center; gap: 8px; padding: 5px 0; font-size: 0.88rem;
-}
-.weather-card__row-icon { font-size: 1.15rem; text-align: center; }
-.weather-card__row-temp { font-weight: 600; text-align: end; }
-.weather-card__row-temps { display: flex; gap: 12px; justify-content: flex-end; min-width: 60px; }
-.weather-card__row-min { opacity: 0.75; }
-
-/* Last update time, cached-data badge, error state */
-.weather-card__updated { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; font-size: 0.72rem; opacity: 0.85; }
-.weather-card__badge { padding: 1px 6px; font-size: 0.68rem; border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 4px; }
-
-.weather-card__error { padding: 28px 0; text-align: center; font-size: 0.9rem; }
-.weather-card__retry {
-  padding: 6px 16px; font: inherit; font-size: 0.85rem; color: #1f4f82;
-  background: #fff; border: 0; border-radius: 6px; cursor: pointer;
+/* Mobile: hide the city name to leave more room for the moving items. */
+@media (max-width: 639px) {
+  .weather-ticker__city { display: none; }
 }
 
-/* Decorative skyline pinned to the bottom of the card */
-.weather-card__skyline { position: absolute; inset-inline: 0; bottom: 0; z-index: 0; width: 100%; height: 90px; }
-
-/* ===== Responsive home layout =====
-   <= 900px (tablet/mobile): one column; the weather card moves above the feed (order: -1) and stops being sticky. */
-@media (max-width: 900px) {
-  .home-layout { grid-template-columns: 1fr; gap: 24px; }
-  .home-layout__sidebar { position: static; order: -1; }
-  .weather-card { min-height: 0; }
+/* Users who asked their system for less motion get a still row they can scroll by hand. */
+@media (prefers-reduced-motion: reduce) {
+  .weather-ticker__track { animation: none; }
+  .weather-ticker__viewport { overflow-x: auto; mask-image: none; }
+  .weather-ticker__group[aria-hidden="true"] { display: none; }
 }
