@@ -35,6 +35,7 @@ app.use(authRoutes);
 app.use(require('./src/modules/admin/admin.routes'));
 app.use(staffRoutes);
 app.use(analyticsRoutes);
+app.use(require('./src/modules/weather/weather.routes'));
 app.use(publicRoutes);
 app.use(commentRoutes);
 

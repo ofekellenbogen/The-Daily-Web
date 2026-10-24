@@ -8,6 +8,8 @@
   <%- include('../partials/layout/header') %>
 
   <main class="container feed" id="main">
+    <div class="home-layout">
+      <div class="home-layout__main">
     <div class="feed-heading">
       <h1>החדשות האחרונות</h1>
       <span class="feed-heading__rule" aria-hidden="true"></span>
@@ -58,9 +60,16 @@
     <noscript>
       <p class="feed-status">כדי לצפות בפיד החדשות יש להפעיל JavaScript בדפדפן.</p>
     </noscript>
+      </div>
+
+      <aside class="home-layout__sidebar" aria-label="מזג אוויר">
+        <%- include('../partials/weather-widget') %>
+      </aside>
+    </div>
   </main>
 
   <%- include('../partials/layout/footer') %>
   <script src="/js/feed.js" defer></script>
+  <script src="/js/weather.js" defer></script>
 </body>
 </html>
