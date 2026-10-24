@@ -153,6 +153,39 @@ test('getBucket uses the last slot just before midnight', () => {
   assert.equal(getBucket(new Date('2026-10-11T23:59:59.999Z')).slot, 287);
 });
 
+test('comment form lets guests type a name but locks it to the display name for logged-in users', async () => {
+  const render = (currentUser) => ejs.renderFile(path.join(__dirname, '../../views/partials/comments.ejs'), {
+    currentUser, articleId: 'article', commentCount: 0, formatDate: () => 'today',
+    comments: { data: [], meta: {} }
+  });
+  const guest = await render(null);
+  assert.match(guest, /name="authorName"[^>]*placeholder="אורח"/);
+  assert.doesNotMatch(guest, /readonly/);
+  for (const role of ['reporter', 'editor']) {
+    const html = await render({ role, displayName: 'Dana Levi' });
+    assert.match(html, /name="authorName" value="Dana Levi" readonly/);
+  }
+});
+
+test('createComment uses the logged-in display name and lets guests choose theirs', async (t) => {
+  const Comment = require('../../src/models/Comment');
+  const rateLimit = require('../../src/services/commentRateLimit.service');
+  const articleId = String(new mongoose.Types.ObjectId());
+  t.mock.method(Article, 'exists', async () => true);
+  t.mock.method(rateLimit, 'takeCommentSlot', async () => ({ allowed: true }));
+  const created = [];
+  t.mock.method(Comment, 'create', async (doc) => {
+    created.push(doc);
+    return { ...doc, _id: new mongoose.Types.ObjectId(), createdAt: new Date() };
+  });
+
+  await commentsService.createComment(articleId, { authorName: 'Impostor', body: 'hi' }, 'device', { displayName: 'Dana Levi' });
+  await commentsService.createComment(articleId, { body: 'hi' }, 'device', { displayName: 'Editor Eli' });
+  await commentsService.createComment(articleId, { authorName: 'Visitor', body: 'hi' }, 'device', null);
+  await commentsService.createComment(articleId, { body: 'hi' }, 'device', null);
+  assert.deepEqual(created.map((doc) => doc.authorName), ['Dana Levi', 'Editor Eli', 'Visitor', 'אורח']);
+});
+
 test('parseCommentInput trims and defaults the guest name', () => {
   assert.deepEqual(parseCommentInput({ authorName: '  ', body: '  שלום  ' }), {
     authorName: 'אורח',

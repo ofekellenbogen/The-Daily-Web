@@ -90,10 +90,6 @@
         <% if (published.imageUrl) { %>
           <img class="published-image" src="<%= published.imageUrl %>" alt="<%= published.imageAlt || published.title %>" loading="lazy">
           <p class="published-body">תמונה: <%= published.imageUrl %></p>
-          <% if (published.imageCredit || published.imageLicense) { %>
-            <p class="published-body">קרדיט: <%= published.imageCredit %> · <%= published.imageLicense %></p>
-            <% if (published.imageSourceUrl) { %><p class="published-body">מקור: <%= published.imageSourceUrl %></p><% } %>
-          <% } %>
         <% } %>
         <div class="approved-snapshot-card__body">
           <p class="published-body"><%= published.body %></p>

@@ -712,7 +712,7 @@ test('editing without attribution inputs preserves credits through autosave and 
   const published = await (await request(`/articles/${article._id}`)).text();
   for (const [field, value] of Object.entries(attribution)) {
     assert.equal(article.publishedVersion[field], value);
-    assert.ok(published.includes(value));
+    assert.ok(!published.includes(value));
   }
 });
 

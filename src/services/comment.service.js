@@ -94,8 +94,10 @@ function countComments(articleId) {
   return Comment.countDocuments({ articleId });
 }
 
-async function createComment(articleId, input, deviceId) {
-  const fields = parseCommentInput(input);
+async function createComment(articleId, input, deviceId, user) {
+  // A logged-in user always comments under their own name; only guests choose a name.
+  const source = user ? { ...input, authorName: String(user.displayName).slice(0, MAX_NAME_LENGTH) } : input;
+  const fields = parseCommentInput(source);
   await ensurePublicArticle(articleId);
 
   // Spam protection: max 3 comments per minute per device (see commentRateLimit.service.js).
