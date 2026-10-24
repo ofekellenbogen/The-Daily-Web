@@ -99,10 +99,10 @@ async function transitionArticle(id, user, action, note) {
     article.editorNote = '';
   } else {
     if (user.role !== 'editor') throw new HttpError(403, 'FORBIDDEN', 'פעולה זו מותרת לעורך בלבד');
-    if (article.workflowStatus !== 'pending') {
-      throw new HttpError(409, 'INVALID_TRANSITION', 'ניתן לאשר או להחזיר רק כתבה שממתינה לאישור');
-    }
     if (action === 'approve') {
+      if (!['draft', 'pending', 'returned'].includes(article.workflowStatus)) {
+        throw new HttpError(409, 'INVALID_TRANSITION', 'יש לערוך את הכתבה לפני פרסום גרסה נוספת');
+      }
       requireCompleteContent(article.workingCopy);
       const publishedAt = new Date();
       const version = (article.publishedVersion?.version || 0) + 1;
@@ -111,6 +111,9 @@ async function transitionArticle(id, user, action, note) {
       article.workflowStatus = 'published';
       article.editorNote = '';
     } else if (action === 'return') {
+      if (article.workflowStatus !== 'pending') {
+        throw new HttpError(409, 'INVALID_TRANSITION', 'ניתן להחזיר רק כתבה שממתינה לאישור');
+      }
       if (typeof note !== 'string' || !note.trim() || note.length > 1000) {
         throw new HttpError(400, 'NOTE_REQUIRED', 'יש לצרף הערה לתיקונים (עד 1000 תווים)');
       }

@@ -49,6 +49,15 @@
 .article-image-preview figcaption { margin-top: 7px; color: var(--color-muted); font-size: .78rem; }
 .staff-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
 .staff-filter select { max-width: 100%; padding: 8px; font: inherit; }
+.workspace-page { padding-top: 32px; padding-bottom: 32px; }
+.workspace-controls { grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr); }
+.workspace-controls .field { min-width: 0; }
+#workspace-status { min-height: 1.5em; color: var(--color-muted); }
+#workspace-status.form-error { color: var(--color-primary-dark); }
+@media (max-width: 639px) {
+  .workspace-page { padding-top: 24px; }
+  .workspace-controls { grid-template-columns: minmax(0, 1fr); }
+}
 .analytics-page { --analytics-accent: #087f8c; --analytics-ink: #252a2c; max-width: 1240px; padding-top: 36px; padding-bottom: 32px; letter-spacing: 0; }
 .analytics-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 26px; }
 .analytics-eyebrow { margin: 0 0 6px; color: var(--color-muted); font-size: 0.8rem; font-weight: 600; }

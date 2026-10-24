@@ -59,6 +59,7 @@ Reporters cannot access another reporter's article or publish/delete content. Wh
 
 The workspace provides an article list and an editing form. Draft changes save automatically; submission
 for review is explicit. Editing published content keeps the approved snapshot public until approval.
+Reporter and editor workspaces share the home page's search controls: title searches update after a short typing pause, and status changes apply immediately without reloading. Search and status filters remain active when loading more articles.
 
 Passwords are stored as salted, one-way `scrypt` hashes using Node's built-in `crypto` module. Login creates a random session token in an HttpOnly, SameSite=Lax cookie; only its SHA-256 hash and expiry are stored in MongoDB. Sessions last seven days and survive a server restart without a server-side secret or in-memory session store. Each request loads the user's current role from MongoDB. Logout deletes the session. Production uses Secure cookies, so set `NODE_ENV=production` when serving over HTTPS.
 
@@ -74,7 +75,7 @@ Passwords are stored as salted, one-way `scrypt` hashes using Node's built-in `c
 | POST | `/api/staff/articles` | Create an owned draft (reporter) |
 | PATCH | `/api/staff/articles/:id` | Save content (owner or editor) |
 | POST | `/api/staff/articles/:id/submit` | Submit an owned draft/returned article (reporter) |
-| POST | `/api/staff/articles/:id/approve` | Publish a pending article (editor) |
+| POST | `/api/staff/articles/:id/approve` | Publish a draft, pending or returned article (editor) |
 | POST | `/api/staff/articles/:id/return` | Return a pending article with `{ "note": "..." }` (editor) |
 | DELETE | `/api/staff/articles/:id` | Delete an article and related comments/statistics (editor) |
 
@@ -151,7 +152,7 @@ only for editing. New and existing drafts save automatically through Ajax under 
 
 `/editor` lists articles from every reporter and filters by all four workflow states. Filtering and loading the next 20 summaries use Ajax without reloading the page. The same filters work on the server and are validated there. Article list queries omit full bodies and use indexes for author, update time and workflow status.
 
-Editors can read and edit submitted content, approve complete pending articles, return them with a required correction note, and delete an article with its related comments and view data. Other state transitions and reporter attempts to use editor operations are rejected on the server. The editing page labels the submitted/working content and shows the current approved title, summary, body, category, image and version separately. The public article page continues to show the approved snapshot through editing, submission and return, and switches only after approval. Creation, submission, approval, returns and deletion produce operational logs.
+Editors can read and edit all articles and publish complete drafts, pending articles and returned articles directly, without reporter submission. Editing a published article creates a draft that the editor can publish as the next version. Editors can return pending articles with a required correction note and delete articles with their related comments and view data. Other state transitions and reporter attempts to use editor operations are rejected on the server. The editing page labels the submitted/working content and shows the current approved title, summary, body, category, image and version separately. The public article page continues to show the approved snapshot through editing, submission and return, and switches only after approval. Creation, submission, approval, returns and deletion produce operational logs.
 
 Tests cover status filters, pagination, transitions, approval, corrections and the published-update
 cycle. Autosave (#10) is included on this branch; CRUD management and weather remain separate tasks.
