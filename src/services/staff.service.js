@@ -9,7 +9,8 @@
 //                     │                         returned ──submit──► pending    │
 //                     └──────────── editing a published article ◄───────────────┘
 //
-//   - Editors may also approve a draft or returned article directly.
+//   - Only a pending article can be published or returned. An editor who edits a draft
+//     (e.g. an update to a published article) sends it to pending first, like a reporter.
 //   - Any other transition is rejected with 409 (Conflict).
 //
 // Published articles: edits change only `workingCopy`. Readers keep seeing `publishedVersion`
@@ -217,7 +218,8 @@ async function saveTransition(article, user, action) {
   return article;
 }
 
-// Reporter: draft/returned -> pending.
+// draft/returned -> pending. A reporter may submit only their own articles (checked by
+// getArticle); an editor may submit any article, e.g. after editing it themselves.
 async function submitArticle(id, user) {
   const article = await getArticle(id, user);
   await ensureUniqueTitle(article.workingCopy.title, article._id);
@@ -230,14 +232,14 @@ async function submitArticle(id, user) {
   return saveTransition(article, user, 'submit');
 }
 
-// Editor: draft/pending/returned -> published. Copies workingCopy into a new publishedVersion.
+// Editor: pending -> published. Copies workingCopy into a new publishedVersion.
 async function approveArticle(id, user) {
   const article = await getArticle(id, user);
   requireEditor(user);
-  await ensureUniqueTitle(article.workingCopy.title, article._id);
-  if (!['draft', 'pending', 'returned'].includes(article.workflowStatus)) {
-    throw new HttpError(409, 'INVALID_TRANSITION', 'יש לערוך את הכתבה לפני פרסום גרסה נוספת');
+  if (article.workflowStatus !== 'pending') {
+    throw new HttpError(409, 'INVALID_TRANSITION', 'ניתן לפרסם רק כתבה שממתינה לאישור עורך');
   }
+  await ensureUniqueTitle(article.workingCopy.title, article._id);
   requireCompleteContent(article.workingCopy);
 
   const publishedAt = new Date();

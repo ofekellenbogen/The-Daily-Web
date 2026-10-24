@@ -84,11 +84,12 @@
 
     editor.querySelectorAll('[data-action]').forEach((button) => {
       const action = button.dataset.action;
-      if (action === 'submit') button.hidden = status === 'pending';
-      else if (action === 'approve') button.hidden = status === 'published';
-      else if (action === 'return') button.hidden = status !== 'pending';
+      if (action === 'submit') button.hidden = !['draft', 'returned'].includes(status);
+      else if (action === 'approve' || action === 'return') button.hidden = status !== 'pending';
       else button.hidden = false;
     });
+    const returnPanel = document.getElementById('return-panel');
+    if (returnPanel) returnPanel.hidden = status !== 'pending';
   }
 
   // fetch() wrapper: sends JSON and throws an Error with the server's Hebrew message on failure.

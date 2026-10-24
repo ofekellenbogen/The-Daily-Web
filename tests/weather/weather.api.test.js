@@ -29,7 +29,7 @@ test('GET /api/weather returns the weather payload with cache headers', async ()
 
   const res = await fetch(`${baseUrl}/api/weather`);
   assert.equal(res.status, 200);
-  assert.equal(res.headers.get('cache-control'), 'public, max-age=60');
+  assert.equal(res.headers.get('cache-control'), 'no-cache');
   const json = await res.json();
   assert.equal(json.success, true);
   assert.equal(json.weather.temperature, 26);

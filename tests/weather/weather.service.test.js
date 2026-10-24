@@ -84,9 +84,10 @@ test('results are cached', async () => {
   assert.equal(second.cached, true);
 });
 
-test('cache lasts at most 10 minutes (+ 5-minute browser reload = never older than 15)', async () => {
-  assert.ok(weatherService.CACHE_TTL_MS <= 10 * 60 * 1000);
-  weatherService.setCachedData({ temperature: 1 }, Date.now() - 10 * 60 * 1000);
+test('fresh cache lasts at most 5 minutes; with failures data is served until 10 (+ 5-minute browser reload = never older than 15)', async () => {
+  assert.ok(weatherService.CACHE_TTL_MS <= 5 * 60 * 1000);
+  assert.ok(weatherService.MAX_STALE_MS + 5 * 60 * 1000 <= 15 * 60 * 1000);
+  weatherService.setCachedData({ temperature: 1 }, Date.now() - 5 * 60 * 1000);
   assert.equal(weatherService.isCacheValid(), false);
 });
 
@@ -102,14 +103,17 @@ test('concurrent requests share one in-flight fetch', async () => {
   assert.ok(results.every((r) => r.temperature === 26));
 });
 
-test('serves stale cache when the provider fails, and throws when there is none', async () => {
+test('serves recent stale cache when the provider fails, but never data 10+ minutes old', async () => {
   const failing = async () => { throw new Error('Network timeout'); };
   await assert.rejects(weatherService.getWeather({ fetchFn: failing }), /Network timeout/);
 
-  weatherService.setCachedData({ temperature: 24 }, Date.now() - 20 * 60 * 1000);
+  weatherService.setCachedData({ temperature: 24 }, Date.now() - 8 * 60 * 1000);
   const result = await weatherService.getWeather({ fetchFn: failing });
   assert.equal(result.temperature, 24);
   assert.equal(result.stale, true);
+
+  weatherService.setCachedData({ temperature: 24 }, Date.now() - 10 * 60 * 1000);
+  await assert.rejects(weatherService.getWeather({ fetchFn: failing }), /Network timeout/);
 
   weatherService.clearCache();
   await assert.rejects(

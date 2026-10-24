@@ -56,34 +56,46 @@ test('old browser backups restore editable fields without accessing removed attr
   assert.equal(page.storage.size, 0);
 });
 
-test('editors can publish from draft and returned states, and after autosaving a published update', async () => {
+test('editors send drafts, returned and edited published articles to pending; approve and return appear only when pending', async () => {
   for (const workflowStatus of ['draft', 'returned', 'published']) {
     const requests = [];
     let resolveSave;
     const page = setup((url, options) => {
       requests.push({ url, ...options });
       if (options.method === 'PUT') return new Promise(resolve => { resolveSave = resolve; });
-      return Promise.resolve({ ok: true, json: async () => ({ message: 'Published' }) });
-    }, new Map(), false, { role: 'editor', workflowStatus, actions: ['approve', 'return', 'delete'] });
-    assert.equal(page.actions.approve.hidden, workflowStatus === 'published');
+      return Promise.resolve({ ok: true, json: async () => ({ message: 'Done' }) });
+    }, new Map(), false, { role: 'editor', workflowStatus, actions: ['submit', 'approve', 'return', 'delete'] });
+    assert.equal(page.actions.submit.hidden, workflowStatus === 'published');
+    assert.equal(page.actions.approve.hidden, true);
     assert.equal(page.actions.return.hidden, true);
     page.change('Editor changes');
-    resolveSave({ ok: true, json: async () => ({ workflowStatus: workflowStatus === 'returned' ? 'returned' : 'draft' }) });
+    const savedStatus = workflowStatus === 'returned' ? 'returned' : 'draft';
+    resolveSave({ ok: true, json: async () => ({ workflowStatus: savedStatus }) });
     await tick();
-    assert.equal(page.actions.approve.hidden, false);
-    assert.equal(page.actions.return.hidden, true);
-    // Clicking publish must save the current form before sending approval.
-    const publishing = page.actions.approve.click();
+    assert.equal(page.actions.submit.hidden, false);
+    assert.equal(page.actions.approve.hidden, true);
+    // Clicking submit must save the current form before sending it to pending.
+    const submitting = page.actions.submit.click();
     assert.equal(requests.length, 2);
     assert.equal(requests[1].method, 'PUT');
     assert.equal(JSON.parse(requests[1].body).title, 'Editor changes');
-    resolveSave({ ok: true, json: async () => ({ workflowStatus: workflowStatus === 'returned' ? 'returned' : 'draft' }) });
-    await publishing;
+    resolveSave({ ok: true, json: async () => ({ workflowStatus: savedStatus }) });
+    await submitting;
     assert.equal(requests.length, 3);
-    assert.equal(requests[2].method, 'POST');
-    assert.match(requests[2].url, /\/approve$/);
+    assert.match(requests[2].url, /\/submit$/);
+    assert.equal(page.editor.dataset.workflowStatus, 'pending');
+    assert.equal(page.actions.submit.hidden, true);
+    assert.equal(page.actions.approve.hidden, false);
+    assert.equal(page.actions.return.hidden, false);
+
+    const publishing = page.actions.approve.click();
+    await tick();
+    resolveSave({ ok: true, json: async () => ({ workflowStatus: 'pending' }) });
+    await publishing;
+    assert.match(requests.at(-1).url, /\/approve$/);
     assert.equal(page.editor.dataset.workflowStatus, 'published');
     assert.equal(page.actions.approve.hidden, true);
+    assert.equal(page.actions.submit.hidden, true);
     assert.equal(page.actions.delete.hidden, false);
     assert.equal(page.reloads, 1);
   }
@@ -94,11 +106,11 @@ test('a failed editor save prevents publication and keeps publish available for 
   const page = setup(async (url, options) => {
     requests.push({ url, ...options });
     throw new Error('offline');
-  }, new Map(), false, { role: 'editor', actions: ['approve'] });
+  }, new Map(), false, { role: 'editor', workflowStatus: 'pending', actions: ['approve'] });
   await page.actions.approve.click();
   assert.equal(requests.length, 1);
   assert.equal(requests[0].method, 'PUT');
-  assert.equal(page.editor.dataset.workflowStatus, 'draft');
+  assert.equal(page.editor.dataset.workflowStatus, 'pending');
   assert.equal(page.actions.approve.hidden, false);
   assert.equal(page.actions.approve.disabled, false);
   assert.match(page.status.textContent, /offline/);
@@ -110,7 +122,7 @@ test('failed publication does not reload the page', async () => {
   const page = setup(async (url, options) => options.method === 'PUT'
     ? { ok: true, json: async () => ({ workflowStatus: 'draft' }) }
     : { ok: false, status: 400, json: async () => ({ error: { message: 'Publication failed' } }) },
-  new Map(), false, { role: 'editor', actions: ['approve'] });
+  new Map(), false, { role: 'editor', workflowStatus: 'pending', actions: ['approve'] });
   await page.actions.approve.click();
   assert.equal(page.reloads, 0);
   assert.equal(page.status.textContent, 'Publication failed');

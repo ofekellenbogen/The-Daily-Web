@@ -67,6 +67,10 @@ function articleCard(article, statusLabels) {
   card.append(heading);
 
   const details = [`מצב: ${statusLabels[article.workflowStatus]}`];
+  // An article that is live but has an unapproved update in progress.
+  if (article.publishedVersion && article.workflowStatus !== 'published') {
+    details.push('מפורסמת באתר (הגרסה המאושרת)');
+  }
   // Editors see articles of all reporters, so they also need the author's name.
   if (list.dataset.role === 'editor') {
     details.push(`כתב: ${article.authorId?.displayName || 'משתמש לא זמין'}`);

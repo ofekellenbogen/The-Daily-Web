@@ -25,7 +25,8 @@ router.patch('/api/staff/articles/:id', controller.update); //               upd
 router.delete('/api/staff/articles/:id', editorOnly, controller.remove); //  delete
 
 // Workflow transitions
-router.post('/api/staff/articles/:id/submit', reporterOnly, controller.submit);
+// Reporters submit their own articles; editors may submit any article (ownership is checked in the service).
+router.post('/api/staff/articles/:id/submit', controller.submit);
 router.post('/api/staff/articles/:id/approve', editorOnly, controller.approve);
 router.post('/api/staff/articles/:id/return', editorOnly, controller.returnForCorrections);
 

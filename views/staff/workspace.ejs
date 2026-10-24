@@ -48,6 +48,8 @@
             <% if (article.imageUrl) { %><img class="workspace-card__image" src="<%= article.imageUrl %>" alt="<%= article.imageAlt || article.workingCopy.title %>" loading="lazy"><% } else { %><div class="workspace-card__image workspace-card__image--empty" aria-hidden="true">The Daily Web</div><% } %>
             <h2><a href="/staff/articles/<%= article._id %>"><%= article.workingCopy.title || 'ללא כותרת' %></a></h2>
             <p>מצב: <%= statusLabels[article.workflowStatus] %></p>
+            <%# An article that is live but has an unapproved update in progress. %>
+            <% if (article.publishedVersion && article.workflowStatus !== 'published') { %><p class="live-note">מפורסמת באתר (הגרסה המאושרת)</p><% } %>
             <%# Only editors see the author name (reporters only see their own articles). %>
             <% if (currentUser.role === 'editor') { %><p>כתב: <%= article.authorId?.displayName || 'משתמש לא זמין' %></p><% } %>
             <% if (article.editorNote) { %><p>הערת עורך: <%= article.editorNote %></p><% } %>

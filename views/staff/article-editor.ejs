@@ -23,6 +23,10 @@
     <% if (article) { %>
       <p id="article-state" class="workflow-badge workflow-badge--<%= status %>"><span aria-hidden="true"></span>מצב: <strong><%= statusLabels[status] %></strong></p>
     <% } %>
+    <%# A published article stays live while it is edited; this makes that clear in every state. %>
+    <% if (article?.publishedVersion) { %>
+      <p class="live-note">גרסה <%= article.publishedVersion.version %> של הכתבה מוצגת כעת לציבור. שינויים בגרסת העבודה יופיעו באתר רק לאחר אישור עורך.</p>
+    <% } %>
     <% if (article?.editorNote) { %><p class="staff-card">הערת עורך: <%= article.editorNote %></p><% } %>
     <% if (locked) { %><p>הכתבה ממתינה לאישור עורך ולא ניתן לערוך אותה כרגע.</p><% } %>
 
@@ -32,7 +36,6 @@
     <form id="article-form" class="staff-form">
       <fieldset class="draft-editor-panel" <%= locked ? 'disabled' : '' %>>
         <legend><%= isEditor ? (status === 'pending' ? 'התוכן שהוגש לאישור' : 'גרסת העבודה') : 'תוכן הכתבה' %></legend>
-        <% if (article?.publishedVersion) { %><p>השינויים בגרסת העבודה יוצגו לציבור רק לאחר אישור עורך.</p><% } %>
 
         <label for="article-title">כותרת</label>
         <input id="article-title" name="title" maxlength="200" value="<%= content.title || '' %>">
@@ -61,17 +64,17 @@
     </form>
 
     <%# Workflow buttons. The server checks every permission again - these are only shortcuts.
-        article-editor.js hides the buttons that don't fit the current state. %>
+        article-editor.js shows only the buttons that fit the current state:
+        draft/returned -> submit, pending -> approve / return (editors only). %>
     <section class="staff-actions" aria-label="פעולות בכתבה">
-      <% if (!isEditor) { %>
-        <button class="button" type="button" data-action="submit">שמירה ושליחה לאישור עורך</button>
-      <% } else { %>
-        <button class="button" type="button" data-action="approve">שמירה ואישור פרסום</button>
-        <% if (status === 'pending') { %>
+      <button class="button" type="button" data-action="submit">שמירה ושליחה לאישור עורך</button>
+      <% if (isEditor) { %>
+        <button class="button" type="button" data-action="approve" <%= status === 'pending' ? '' : 'hidden' %>>שמירה ואישור פרסום</button>
+        <div id="return-panel" class="return-panel" <%= status === 'pending' ? '' : 'hidden' %>>
           <label for="editor-note">הערה להחזרה לתיקונים</label>
           <textarea id="editor-note" maxlength="1000" rows="3"></textarea>
           <button class="button button--secondary" type="button" data-action="return">שמירה והחזרה לתיקונים</button>
-        <% } %>
+        </div>
         <% if (article) { %><button class="button button--secondary" type="button" data-action="delete">מחיקת כתבה</button><% } %>
       <% } %>
     </section>

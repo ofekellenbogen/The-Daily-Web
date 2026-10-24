@@ -304,8 +304,9 @@ test('editors can create owned articles through both creation endpoints and publ
   const page = await request('/staff/articles/new', { cookie });
   assert.equal(page.status, 200);
   const html = await page.text();
-  assert.match(html, /data-action="approve"/);
-  assert.doesNotMatch(html, /data-action="delete"|data-action="submit"/);
+  assert.match(html, /data-action="approve" hidden>/);
+  assert.match(html, /data-action="submit"/);
+  assert.doesNotMatch(html, /data-action="delete"/);
   const input = { title: 'Editor authored article', summary: 'Summary',
     body: 'Editor content', category: 'tech', imageUrl: '' };
   const created = await request('/api/staff/articles', { method: 'POST', cookie, body: input });
@@ -318,6 +319,13 @@ test('editors can create owned articles through both creation endpoints and publ
     method: 'PUT', cookie, body: draftInput
   })).status, 200);
   assert.equal(String(articles.get(draftId).authorId), String(users[2]._id));
+  // A draft can't be published directly: it must be sent to pending first.
+  assert.equal((await request(`/api/staff/articles/${draftId}/approve`, {
+    method: 'POST', cookie
+  })).status, 409);
+  assert.equal((await request(`/api/staff/articles/${draftId}/submit`, {
+    method: 'POST', cookie
+  })).status, 200);
   assert.equal((await request(`/api/staff/articles/${draftId}/approve`, {
     method: 'POST', cookie
   })).status, 200);
@@ -572,7 +580,8 @@ test('editor publication requires complete content and valid state transitions',
   const cookie = await login('editor');
   for (const state of ['draft', 'returned', 'published']) {
     const article = storeArticle({ authorId: users[0]._id, workingCopy: content, workflowStatus: state });
-    for (const action of state === 'published' ? ['approve', 'return'] : ['return']) {
+    // Only a pending article may be approved or returned; every other transition is a conflict.
+    for (const action of ['approve', 'return']) {
       assert.equal((await request(`/api/staff/articles/${article._id}/${action}`, {
         method: 'POST', cookie, body: { note: 'Fix sources' }
       })).status, 409);
@@ -620,7 +629,7 @@ test('articles can be submitted and published without an image or description', 
   assert.equal((await request('/images/article-placeholder.svg')).status, 200);
 });
 
-test('editors save and publish drafts, returned articles and published updates without reporter submission', async () => {
+test('editors edit drafts, returned articles and published updates, send them to pending, then publish', async () => {
   const cookie = await login('editor');
   const reporterCookie = await login();
   for (const state of ['draft', 'returned', 'published']) {
@@ -634,11 +643,11 @@ test('editors save and publish drafts, returned articles and published updates w
       } : {}) });
     const path = `/api/staff/articles/${article._id}`;
     const update = { ...content, title: `Editor revision of ${state}`, body: 'Edited by the editor' };
-    // Incomplete drafts cannot be published, including outside the reporter review flow.
+    // Incomplete content can't be sent for approval.
     assert.equal((await request(`/api/staff/articles/${article._id}`, {
       method: 'PUT', cookie, body: { ...update, body: '' }
     })).status, 200);
-    assert.equal((await request(`${path}/approve`, { method: 'POST', cookie })).status, 400);
+    assert.equal((await request(`${path}/submit`, { method: 'POST', cookie })).status, 400);
     assert.equal(article.publicationHistory.length, wasPublished ? 1 : 0);
     assert.equal((await request(`/api/staff/articles/${article._id}`, {
       method: 'PUT', cookie, body: update
@@ -646,8 +655,15 @@ test('editors save and publish drafts, returned articles and published updates w
     assert.equal(article.workflowStatus, state === 'returned' ? 'returned' : 'draft');
     assert.equal(article.publishedVersion?.title || null, wasPublished ? content.title : null);
     const page = await (await request(`/staff/articles/${article._id}`, { cookie })).text();
-    assert.match(page, /data-action="approve"\s*>/);
-    assert.doesNotMatch(page, /data-action="return"/);
+    assert.match(page, /data-action="submit"/);
+    assert.match(page, /data-action="approve" hidden>/);
+    assert.match(page, /id="return-panel" class="return-panel" hidden>/);
+    if (wasPublished) assert.match(page, /גרסה 1 של הכתבה מוצגת כעת לציבור/);
+    // Not pending yet: publishing directly is not an allowed transition.
+    assert.equal((await request(`${path}/approve`, { method: 'POST', cookie })).status, 409);
+    assert.equal((await request(`${path}/submit`, { method: 'POST', cookie })).status, 200);
+    assert.equal(article.workflowStatus, 'pending');
+    assert.equal(article.publishedVersion?.title || null, wasPublished ? content.title : null);
     assert.equal((await request(`${path}/approve`, { method: 'POST', cookie: reporterCookie })).status, 403);
     assert.equal((await request(`${path}/approve`, { method: 'POST', cookie })).status, 200);
     assert.equal(article.workflowStatus, 'published');
@@ -687,6 +703,9 @@ test('editing without attribution inputs preserves credits through autosave and 
     assert.equal(article.workingCopy[field], value);
     assert.equal(article.publishedVersion[field], value);
   }
+  assert.equal((await request(`/api/staff/articles/${article._id}/submit`, {
+    method: 'POST', cookie
+  })).status, 200);
   assert.equal((await request(`/api/staff/articles/${article._id}/approve`, {
     method: 'POST', cookie
   })).status, 200);

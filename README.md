@@ -23,6 +23,7 @@ Open `.env` and set `MONGODB_URI` (ask a teammate for the team's Atlas connectio
 ```bash
 npm start                   # start the server
 npm run dev                 # or: start and restart automatically on code changes
+npm run seed                # add any missing demo data (safe to run any time, never deletes)
 npm test                    # run the automated tests (no database needed)
 ```
 
@@ -34,10 +35,26 @@ Open <http://localhost:3000>.
 | `MONGODB_DB`  | no       | `daily-web` | Database name                                   |
 | `PORT`        | no       | `3000`      | HTTP port                                       |
 | `NODE_ENV`    | no       |             | `production` makes cookies HTTPS-only           |
+| `SEED_PASSWORD` | no     |             | Only for `npm run seed` on an empty database: password of the demo accounts it creates |
+
+### Demo data (`npm run seed`)
+
+`scripts/seed-demo.js` makes sure the database has everything needed to demonstrate the system,
+and **only adds what is missing** (it never deletes or changes existing data):
+
+* at least 500 articles in all categories, plus comments on them
+* drafts (some still incomplete), articles waiting for approval, and returned articles with an editor's note
+* articles updated 2-3 times after publication, and published articles with an update in progress
+* views for the last 14 days in 5-minute buckets, with a jump after every published update
+  (for the Impact Analytics graph). Days that already have statistics are never overwritten,
+  so **run it again on the day of the defense** to fill in the views up to that day.
+
+The demo texts are fictional and say so in their first line.
 
 ### Accounts
 
-User accounts already exist in the shared database (there is no seed script). Log in at
+User accounts already exist in the shared database. On an empty database, `npm run seed` creates
+the accounts below with the password from `SEED_PASSWORD`. Log in at
 `/login`. Editors can create users and reset passwords at **ניהול משתמשים** (`/editor/users`).
 
 | Role     | Example usernames                                         | Lands on    |
@@ -97,7 +114,7 @@ src/
     analytics.service.js          data for the views-over-time graph
     admin.service.js              CRUD for users, comments and view statistics
     auth.service.js               login check, sessions
-    weather.service.js            Open-Meteo client with a 10-minute cache per area
+    weather.service.js            Open-Meteo client with a 5-minute cache per area
     location.service.js           reader's location and town name (default: Tel Aviv)
   middleware/
     auth.js                       loadUser, requireAuth, requireRole, sameOrigin (CSRF)
@@ -133,6 +150,7 @@ public/                         Static files sent to the browser as-is
   images/                         placeholder article image
 
 tests/                          Automated tests (Node's built-in test runner, MongoDB is mocked)
+scripts/seed-demo.js            Adds missing demo data (npm run seed)
 plan/                           Assignment PDF and the team's work split
 ```
 
@@ -189,7 +207,9 @@ new ──► draft ──submit──► pending ──approve──► publish
 ```
 
 * A reporter may only move **their own** article from draft/returned to pending.
-* An editor may approve (publish) or return a pending article with a required note.
+* An editor may approve (publish) or return a pending article with a required note. Only a
+  **pending** article can be published; an editor who edits a draft (for example an update to a
+  published article) first sends it to pending with the same "send for approval" button.
 * Any other transition returns **409**. A reporter can't edit while the article is pending.
 
 ### Continuous saving (autosave)
@@ -205,6 +225,8 @@ new ──► draft ──submit──► pending ──approve──► publish
 * Edits only change `workingCopy`, so **readers keep seeing the approved version**, even while
   the edit is pending review. Only approval copies the new content into `publishedVersion`
   (as version 2, 3, …).
+* While an update is in progress, the workspace list and the editor page mark the article as
+  still live ("מפורסמת באתר"), so it's clear readers still see the approved version.
 
 ### Editor area (`/editor`)
 * All articles from all reporters, filtered by state and searched by title (Ajax).
@@ -240,11 +262,12 @@ new ──► draft ──submit──► pending ──approve──► publish
     requests are spaced 1 second apart as its rules require).
   * **Not found** (permission refused or not supported): Tel Aviv is shown, marked
     "תל אביב-יפו (מיקום ברירת מחדל)". This is also shown for the moment before the reader answers.
-* The **server** calls Open-Meteo at most once every 10 minutes **per ~10 km area** and shares that
+* The **server** calls Open-Meteo at most once every 5 minutes **per ~10 km area** and shares that
   cached result with every reader in the area, so thousands of readers cause only a few external
-  requests. The page reloads the weather by itself every 5 minutes, so what is on screen is never
-  more than 15 minutes old (10 + 5). If the service fails, the last data is shown, or a friendly
-  message - the rest of the site keeps working.
+  requests. The page reloads the weather by itself every 5 minutes (the browser doesn't cache the
+  answer), so what is on screen is never more than 15 minutes old. If the service fails, the last
+  data is still shown while it is under 15 minutes old (the server serves it up to 10 minutes,
+  + 5 until the next reload); after that a friendly message is shown - the rest of the site keeps working.
 
 ### Errors, validation, performance and logs
 * All input is validated on the server (and the browser). Invalid data returns **400**, unknown
@@ -276,7 +299,7 @@ new ──► draft ──submit──► pending ──approve──► publish
 | GET / POST | `/api/staff/articles` | staff | List (`status`, `q`, `page`) / create |
 | GET / PUT / PATCH | `/api/staff/articles/:id` | owner or editor | Read / autosave / update |
 | DELETE | `/api/staff/articles/:id` | editor | Delete |
-| POST | `/api/staff/articles/:id/submit` | reporter (owner) | Send for review |
+| POST | `/api/staff/articles/:id/submit` | reporter (owner) / editor | Send for review |
 | POST | `/api/staff/articles/:id/approve` | editor | Publish |
 | POST | `/api/staff/articles/:id/return` | editor | Return with `{ note }` |
 | GET | `/editor/analytics`, `/api/analytics/articles[/:id]` | editor | Impact Analytics |
