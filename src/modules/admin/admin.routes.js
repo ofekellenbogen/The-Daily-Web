@@ -1,7 +1,8 @@
 const router = require('express').Router();
 const controller = require('./admin.controller');
 const { requireAuth, requireRole, sameOrigin } = require('../../middleware/auth');
-router.get('/editor/data', requireAuth, requireRole('editor'), controller.page);
+router.get('/editor/users', requireAuth, requireRole('editor'), controller.page);
+router.get('/editor/data', requireAuth, requireRole('editor'), (req, res) => res.redirect('/editor/users'));
 router.use('/api/admin', requireAuth, requireRole('editor'), sameOrigin);
 router.get('/api/admin/:resource', controller.list);
 router.get('/api/admin/:resource/:id', controller.get);

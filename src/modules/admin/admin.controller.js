@@ -8,7 +8,7 @@ function handle(handler) {
     }
   };
 }
-const page = (req, res) => res.render('staff/data', { title: 'ניהול נתונים' });
+const page = (req, res) => res.render('staff/data', { title: 'ניהול משתמשים' });
 const list = handle(async (req, res) => res.json(await service.list(req.params.resource, req.query)));
 const get = handle(async (req, res) => res.json({ data: await service.get(req.params.resource, req.params.id) }));
 const create = handle(async (req, res) => {

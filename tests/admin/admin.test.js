@@ -49,19 +49,23 @@ after(async () => { server.closeAllConnections(); await new Promise(resolve => s
 function request(path, method = 'GET', body, role = 'editor', headers = {}) {
   return fetch(`${base}${path}`, { method, redirect: 'manual', headers: { Cookie: `dw_session=${role}`, 'Content-Type': 'application/json', ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
 }
-test('data page and every CRUD method enforce editor access and same-origin protection', async () => {
+test('users page and every CRUD method enforce editor access and same-origin protection', async () => {
   for (const role of ['guest', 'reporter']) {
     for (const method of ['GET', 'POST', 'PATCH', 'DELETE']) {
       assert.equal((await request(`/api/admin/users${['PATCH', 'DELETE'].includes(method) ? `/${actor._id}` : ''}`, method, undefined, role)).status, role === 'guest' ? 401 : 403);
     }
     assert.equal((await request('/editor/data', 'GET', undefined, role)).status, role === 'guest' ? 302 : 403);
+    assert.equal((await request('/editor/users', 'GET', undefined, role)).status, role === 'guest' ? 302 : 403);
   }
-  const page = await request('/editor/data');
+  const legacy = await request('/editor/data');
+  assert.equal(legacy.status, 302);
+  assert.equal(legacy.headers.get('location'), '/editor/users');
+  const page = await request('/editor/users');
   assert.equal(page.status, 200);
   const html = await page.text();
-  assert.match(html, /<title>ניהול נתונים<\/title>/);
-  assert.match(html, /<h1>ניהול נתונים<\/h1>/);
-  assert.doesNotMatch(html, /ניהול משתמשים/);
+  assert.match(html, /<title>ניהול משתמשים<\/title>/);
+  assert.match(html, /<h1>ניהול משתמשים<\/h1>/);
+  assert.doesNotMatch(html, /data-resource|ניהול נתונים|value="comments"|value="stats"/);
   assert.equal((await request('/api/admin/users', 'POST', {}, 'editor', { Origin: 'https://evil.example' })).status, 403);
 });
 test('users support create/read/list/update/delete without exposing password hashes', async () => {

@@ -26,7 +26,7 @@ draft/session data. CRUD and the article workspace redesign (#11) are separate p
 
 For the team's MongoDB Atlas database, ask a teammate for `MONGODB_USERNAME`, `MONGODB_PASSWORD`, and the full `MONGODB_URI`, then fill in `.env`. The application connects using the full `MONGODB_URI`.
 
-User accounts already exist in the shared database. Sign in with an existing account; editors can create and manage users through **ניהול נתונים** (`/editor/data`). There is no user seed command or automatic account creation at startup.
+User accounts already exist in the shared database. Sign in with an existing account; editors can create and manage users through **ניהול משתמשים** (`/editor/users`). There is no user seed command or automatic account creation at startup.
 
 ## Install and run
 
@@ -47,7 +47,7 @@ For the demo feed (520 articles, comments and view statistics), run `npm run see
 
 ## Login and permissions
 
-Open `/login` and use your existing account's password. Editors can manage accounts and reset passwords through `/editor/data`.
+Open `/login` and use your existing account's password. Editors can manage accounts and reset passwords through `/editor/users`.
 
 | Role | Usernames | Access |
 | --- | --- | --- |
@@ -83,9 +83,11 @@ Create/save requests use JSON fields `title`, `summary`, `body`, `category`, and
 
 ## CRUD management
 
-Editors can open **ניהול נתונים** (`/editor/data`) to create, list/search, edit and delete users,
-comments and daily view statistics. Lists are paginated (20 per page). Search users by username/name,
-comments by text/name, or statistics by article ID. The existing article workspace supplies article
+Editors can open **ניהול משתמשים** (`/editor/users`) to create, list/search, edit and delete users.
+Lists are paginated (20 per page), with search by username/name. The old `/editor/data` URL redirects
+to user management. Editors delete comments directly beside each comment on its article page;
+there is no additional comment/statistics management page. Existing REST APIs remain available.
+The existing article workspace supplies article
 CRUD, now with title search for owned drafts as well as the existing public title search.
 
 REST endpoints: GET/POST `/api/admin/users|comments|stats`, GET/PATCH/DELETE
