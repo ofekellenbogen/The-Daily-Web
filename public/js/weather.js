@@ -5,7 +5,8 @@
 //      it into a row of short items (now, feels-like, high/low, rain, wind, humidity, hourly and
 //      daily forecast).
 //   2. Asks the reader for their location (browser permission prompt). If allowed, reloads the
-//      weather for their area: GET /api/weather?lat=..&lon=.. (rounded to ~10 km).
+//      weather for their area: GET /api/weather?lat=..&lon=.. (rounded to ~1 km); the server
+//      answers with the reader's town name.
 //   3. The items are added twice to the track; CSS moves the track so the loop never shows a gap
 //      (see .weather-ticker__track in public.css).
 //   4. The "refresh" button asks the server for fresh data (&refresh=true),
@@ -196,10 +197,10 @@
     if (typeof navigator === 'undefined' || !navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        // Only ~10 km precision is sent to the server (1 decimal), never the exact position.
+        // Rounded to ~1 km (2 decimals): enough to name the town, never the exact position.
         readerCoords = {
-          lat: position.coords.latitude.toFixed(1),
-          lon: position.coords.longitude.toFixed(1)
+          lat: position.coords.latitude.toFixed(2),
+          lon: position.coords.longitude.toFixed(2)
         };
         loadWeather(false);
       },
