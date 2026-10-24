@@ -98,6 +98,7 @@ src/
     admin.service.js              CRUD for users, comments and view statistics
     auth.service.js               login check, sessions
     weather.service.js            Open-Meteo client with a 14-minute cache
+    location.service.js           detects the server computer's location from its IP
   middleware/
     auth.js                       loadUser, requireAuth, requireRole, sameOrigin (CSRF)
     deviceId.js                   anonymous device cookie for guests
@@ -232,6 +233,9 @@ new ──► draft ──submit──► pending ──approve──► publish
 * A **moving ticker** at the top of the home page (between the site header and "החדשות האחרונות"),
   using **Open-Meteo** (free, no API key or credit card). It shows current conditions, the next hours and
   the next days; it pauses on hover and stays still for users who prefer reduced motion.
+* **Location:** the weather is for the computer running the server. Its approximate location is found
+  from its public IP address (ipwho.is, free, no key), and the city name is translated to Hebrew with
+  Open-Meteo's geocoding API. This is detected once a day; if it fails, Raanana is used.
 * The **server** fetches the weather at most once every 14 minutes and shares the cached result
   with all users (data is never more than 15 minutes old). If the service fails, the last data
   is shown, or a friendly message - the rest of the site keeps working.

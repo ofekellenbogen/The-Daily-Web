@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { once } = require('node:events');
 const app = require('../../app');
 const weatherService = require('../../src/services/weather.service');
+const locationService = require('../../src/services/location.service');
 
 let server;
 let baseUrl;
@@ -13,7 +14,11 @@ before(async () => {
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
 
-beforeEach(() => weatherService.clearCache());
+beforeEach(() => {
+  weatherService.clearCache();
+  // No real IP lookup during tests.
+  mock.method(locationService, 'getServerLocation', async () => weatherService.DEFAULT_COORDS);
+});
 afterEach(() => mock.restoreAll());
 
 after(async () => {

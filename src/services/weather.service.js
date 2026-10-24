@@ -1,5 +1,6 @@
 // Weather widget data from Open-Meteo (https://open-meteo.com): a free web service
-// that needs no API key and no credit card.
+// that needs no API key and no credit card. The location is the server computer's
+// own location (see location.service.js).
 //
 // Scaling to thousands of readers: the server - not each browser - calls Open-Meteo,
 // at most once every 14 minutes (the requirement allows data up to 15 minutes old).
@@ -44,6 +45,7 @@ const DEFAULT_WEATHER_INFO = { description: 'מעונן חלקית', icon: '⛅'
 const CACHE_TTL_MS = 14 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 5000;
 
+// Used when the server's own location can't be detected (see location.service.js).
 const DEFAULT_COORDS = {
   latitude: 32.1844,
   longitude: 34.8708,
@@ -178,7 +180,7 @@ async function fetchFromOpenMeteo(coords, fetchFn = globalThis.fetch) {
  * cache is served if the provider fails.
  */
 async function getWeather({ forceRefresh = false, fetchFn = globalThis.fetch, coords = DEFAULT_COORDS } = {}) {
-  if (!forceRefresh && isCacheValid()) {
+  if (!forceRefresh && isCacheValid() && cache.data.city === coords.cityName) {
     return { ...cache.data, cached: true, stale: false };
   }
 
