@@ -26,7 +26,7 @@ draft/session data. CRUD and the article workspace redesign (#11) are separate p
 
 For the team's MongoDB Atlas database, ask a teammate for `MONGODB_USERNAME`, `MONGODB_PASSWORD`, and the full `MONGODB_URI`, then fill in `.env`. The application connects using the full `MONGODB_URI`.
 
-Existing shared database accounts do not require running a seed command. Only create/reset demo accounts when needed: set `DEMO_PASSWORD` and run `npm run seed:users`. This resets those demo accounts' passwords.
+User accounts already exist in the shared database. Sign in with an existing account; editors can create and manage users through **ניהול נתונים** (`/editor/data`). There is no user seed command or automatic account creation at startup.
 
 ## Install and run
 
@@ -35,7 +35,7 @@ npm install
 cp .env.example .env
 ```
 
-Set `MONGODB_URI` in `.env` to a running local MongoDB or Atlas database, then start the server. If you need to create/reset demo accounts, first set `DEMO_PASSWORD` to 8–256 characters and run `npm run seed:users`.
+Set `MONGODB_URI` in `.env` to the MongoDB database containing your existing accounts, then start the server.
 
 ```bash
 npm start
@@ -43,17 +43,17 @@ npm start
 
 Open http://localhost:3000. `PORT` defaults to `3000`; `MONGODB_DB` defaults to `daily-web`. Use `npm run dev` to restart automatically after code changes.
 
-For the existing demo feed (520 articles, comments and view statistics), run `npm run seed:public`. It also seeds the users. Each seed command resets the demo accounts' passwords to the current `DEMO_PASSWORD`; `seed:public` also replaces their articles and related demo data. Keep `.env` out of Git.
+For the demo feed (520 articles, comments and view statistics), run `npm run seed:public`. It uses existing reporter accounts named `dana.levi`, `yossi.cohen`, `maya.mizrahi`, or `amir.peretz`, and an existing editor. At least one of those reporters and one editor must exist. It replaces those reporters' articles and related demo data without creating or changing users or passwords. Keep `.env` out of Git.
 
 ## Login and permissions
 
-Open `/login`. All demo accounts use the password you set in `DEMO_PASSWORD`:
+Open `/login` and use your existing account's password. Editors can manage accounts and reset passwords through `/editor/data`.
 
 | Role | Usernames | Access |
 | --- | --- | --- |
 | Guest | No login | Public feed, published articles and comments |
 | Reporter | `dana.levi`, `yossi.cohen`, `maya.mizrahi`, `amir.peretz` | `/reporter`: create articles, edit their own articles and submit them for review |
-| Editor | `editor` | `/editor`: view/edit all articles, approve publication, return with a note and delete |
+| Editor | Any existing account with the editor role | `/editor`: view/edit all articles, approve publication, return with a note and delete |
 
 Reporters cannot access another reporter's article or publish/delete content. While an article is pending review, its reporter cannot edit it. These rules are enforced on the server for both pages and API requests. Browser-supplied roles, author IDs and publication fields are rejected.
 
@@ -121,7 +121,7 @@ src/modules/analytics/      View tracking
 src/utils/                  Password hashing, cookies and ObjectId validation
 views/                      Semantic Hebrew/RTL EJS pages and shared layout
 public/css/, public/js/     Responsive styles and vanilla JavaScript/Ajax
-scripts/seed/               Demo users and public content
+scripts/seed/               Demo public content using existing accounts
 tests/                      Node's built-in test runner
 plan/                       Assignment PDF and team work plan
 ```

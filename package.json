@@ -8,7 +8,6 @@
     "start": "node app.js",
     "dev": "node --watch app.js",
     "seed:public": "node scripts/seed/public.js",
-    "seed:users": "node scripts/seed/users.js",
     "test": "node --test"
   },
   "engines": {
