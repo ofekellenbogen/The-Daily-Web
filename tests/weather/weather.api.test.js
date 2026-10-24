@@ -14,11 +14,7 @@ before(async () => {
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
 
-beforeEach(() => {
-  weatherService.clearCache();
-  // No real IP lookup during tests.
-  mock.method(locationService, 'getServerLocation', async () => weatherService.DEFAULT_COORDS);
-});
+beforeEach(() => weatherService.clearCache());
 afterEach(() => mock.restoreAll());
 
 after(async () => {
@@ -29,7 +25,7 @@ after(async () => {
 });
 
 test('GET /api/weather returns the weather payload with cache headers', async () => {
-  mock.method(weatherService, 'getWeather', async () => ({ city: 'רעננה, ישראל', temperature: 26, hourly: [], daily: [] }));
+  mock.method(weatherService, 'getWeather', async () => ({ temperature: 26, hourly: [], daily: [] }));
 
   const res = await fetch(`${baseUrl}/api/weather`);
   assert.equal(res.status, 200);
@@ -37,6 +33,14 @@ test('GET /api/weather returns the weather payload with cache headers', async ()
   const json = await res.json();
   assert.equal(json.success, true);
   assert.equal(json.weather.temperature, 26);
+});
+
+test('GET /api/weather without a location uses Tel Aviv, marked as the default location', async () => {
+  let coords = null;
+  mock.method(weatherService, 'getWeather', async (options) => { coords = options.coords; return { temperature: 26 }; });
+  const json = await (await fetch(`${baseUrl}/api/weather`)).json();
+  assert.equal(coords, weatherService.DEFAULT_COORDS);
+  assert.equal(json.weather.city, 'תל אביב-יפו (מיקום ברירת מחדל)');
 });
 
 test('GET /api/weather?refresh=true forces a refresh', async () => {

@@ -1,7 +1,7 @@
 // Moving weather ticker at the top of the home page (views/partials/weather.ejs).
 //
 // Responsibilities:
-//   1. Loads the weather from GET /api/weather when the page opens (server's location) and turns
+//   1. Loads the weather from GET /api/weather when the page opens (default: Tel Aviv) and turns
 //      it into a row of short items (now, feels-like, high/low, rain, wind, humidity, hourly and
 //      daily forecast).
 //   2. Asks the reader for their location (browser permission prompt). If allowed, reloads the
@@ -192,7 +192,7 @@
 
   // Asks the browser for the reader's location (the browser shows a permission prompt).
   // If allowed, the weather is reloaded for their area. If refused or unavailable,
-  // the ticker simply keeps showing the weather for the server's location.
+  // the ticker keeps showing the default location (Tel Aviv, marked "מיקום ברירת מחדל").
   function useReaderLocation() {
     if (typeof navigator === 'undefined' || !navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -204,7 +204,7 @@
         };
         loadWeather(false);
       },
-      () => { /* permission denied or no location: keep the server-location weather */ },
+      () => { /* permission denied or no location: keep the default location */ },
       GEOLOCATION_OPTIONS
     );
   }
@@ -222,7 +222,7 @@
 
   if (retryBtn) retryBtn.addEventListener('click', () => loadWeather(false));
 
-  // Show weather immediately (server location), then switch to the reader's own area if allowed.
+  // Show weather immediately (default location), then switch to the reader's own area if allowed.
   loadWeather(false);
   useReaderLocation();
 })();

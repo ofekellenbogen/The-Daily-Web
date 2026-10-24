@@ -1,24 +1,17 @@
 // Decides WHERE the weather ticker shows the weather for, and what to call that place.
 //
-// 1. Reader's location (preferred): the browser asks the reader for permission and sends
-//    ?lat=&lon= rounded to 2 decimals (~1 km) with the weather request (see public/js/weather.js).
-//    The town name ("באר-שבע, ישראל") comes from OpenStreetMap's free Nominatim reverse-geocoding
-//    service. Names don't change, so each ~1 km cell is looked up only once and remembered.
-//    Nominatim allows at most 1 request per second, so lookups are spaced 1 second apart.
-// 2. Server location (fallback, before permission or if the reader refuses): the public IP
-//    address of the computer running the server is looked up with ipwho.is (free, no API key),
-//    and Open-Meteo's geocoding API (same free provider as the weather) gives the Hebrew city name.
-//    IP location is only approximate (the internet provider's area, often Tel Aviv in Israel).
-//    It is detected once and kept for 24 hours. If detection fails, DEFAULT_COORDS is used and
-//    the detection is retried after 10 minutes.
+// - Reader's location found: the browser asks the reader for permission and sends ?lat=&lon=
+//   rounded to 2 decimals (~1 km) with the weather request (see public/js/weather.js).
+//   The town name ("באר-שבע, ישראל") comes from OpenStreetMap's free Nominatim reverse-geocoding
+//   service. Names don't change, so each ~1 km cell is looked up only once and remembered.
+//   Nominatim allows at most 1 request per second, so lookups are spaced 1 second apart.
+// - Location not found (permission refused, not supported, no ?lat=&lon=): the controller uses
+//   DEFAULT_COORDS from weather.service.js - Tel Aviv, labelled "מיקום ברירת מחדל".
 const logger = require('../utils/logger');
 const HttpError = require('../utils/HttpError');
-const { DEFAULT_COORDS } = require('./weather.service');
 
-const SUCCESS_TTL_MS = 24 * 60 * 60 * 1000;
-const FAILURE_TTL_MS = 10 * 60 * 1000;
 const TIMEOUT_MS = 5000;
-const UNKNOWN_PLACE_NAME = 'המיקום שלך'; // shown if the town name can't be found
+const UNKNOWN_PLACE_NAME = 'המיקום שלך'; // location found, but the town name lookup failed
 const NOMINATIM_GAP_MS = 1000;
 const MAX_CACHED_NAMES = 5000;
 // Nominatim's rules require an identifying User-Agent.
@@ -97,66 +90,9 @@ async function describeReaderLocation(location, fetchFn = globalThis.fetch) {
   };
 }
 
-// ===== Server's location ===========================================================
-
-// The detection promise is cached, so simultaneous requests share one lookup.
-let cached = { promise: null, expiresAt: 0 };
-
-async function getJson(url, fetchFn) {
-  const response = await fetchFn(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
-  if (!response.ok) throw new Error(`${url} returned status ${response.status}`);
-  return response.json();
-}
-
-// "Tel Aviv" -> "תל אביב-יפו, ישראל". Falls back to the English names if there is no Hebrew match.
-async function hebrewPlaceName(city, country, countryCode, fetchFn) {
-  try {
-    const params = new URLSearchParams({ name: city, count: '1', language: 'he', countryCode });
-    const data = await getJson(`https://geocoding-api.open-meteo.com/v1/search?${params}`, fetchFn);
-    const place = data.results?.[0];
-    if (place) return `${place.name}, ${place.country}`;
-  } catch {
-    // fall through to the English name
-  }
-  return `${city}, ${country}`;
-}
-
-async function detectLocation(fetchFn) {
-  const ip = await getJson('https://ipwho.is/', fetchFn);
-  if (!ip.success || typeof ip.latitude !== 'number' || typeof ip.longitude !== 'number') {
-    throw new Error(ip.message || 'IP lookup failed');
-  }
-  return {
-    latitude: ip.latitude,
-    longitude: ip.longitude,
-    cityName: await hebrewPlaceName(ip.city, ip.country, ip.country_code, fetchFn)
-  };
-}
-
-// Returns { latitude, longitude, cityName } for this computer (never throws).
-function getServerLocation(fetchFn = globalThis.fetch) {
-  if (cached.promise && cached.expiresAt > Date.now()) return cached.promise;
-
-  const promise = detectLocation(fetchFn)
-    .then((location) => {
-      logger.info(`[weather] server location detected: ${location.cityName}`);
-      return location;
-    })
-    .catch((err) => {
-      logger.error('[weather] could not detect the server location, using the default:', err.message);
-      cached.expiresAt = Date.now() + FAILURE_TTL_MS;
-      return DEFAULT_COORDS;
-    });
-  cached = { promise, expiresAt: Date.now() + SUCCESS_TTL_MS };
-  return promise;
-}
-
 function clearLocationCache() {
-  cached = { promise: null, expiresAt: 0 };
   placeNames.clear();
   nextNominatimSlot = 0;
 }
 
-module.exports = {
-  parseBrowserLocation, describeReaderLocation, getPlaceName, getServerLocation, clearLocationCache
-};
+module.exports = { parseBrowserLocation, describeReaderLocation, getPlaceName, clearLocationCache };

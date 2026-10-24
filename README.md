@@ -98,7 +98,7 @@ src/
     admin.service.js              CRUD for users, comments and view statistics
     auth.service.js               login check, sessions
     weather.service.js            Open-Meteo client with a 14-minute cache
-    location.service.js           reader's browser location, or the server's location from its IP
+    location.service.js           reader's location and town name (default: Tel Aviv)
   middleware/
     auth.js                       loadUser, requireAuth, requireRole, sameOrigin (CSRF)
     deviceId.js                   anonymous device cookie for guests
@@ -233,13 +233,13 @@ new ──► draft ──submit──► pending ──approve──► publish
 * A **moving ticker** at the top of the home page (between the site header and "החדשות האחרונות"),
   using **Open-Meteo** (free, no API key or credit card). It shows current conditions, the next hours and
   the next days; it pauses on hover and stays still for users who prefer reduced motion.
-* **Location:** the page first shows the weather for the server computer's location, then asks the
-  reader for permission to use their location. If allowed, the ticker switches to the reader's own
-  town, e.g. "באר-שבע, ישראל". The browser sends coordinates rounded to ~1 km (never the exact
-  position); the town name comes from OpenStreetMap's free **Nominatim** reverse-geocoding service
-  (each ~1 km cell is looked up once and remembered; requests are spaced 1 second apart as its rules require).
-  The server's location is found from its public IP address (ipwho.is, free, no key; approximate,
-  often Tel Aviv in Israel) with a Hebrew city name from Open-Meteo's geocoding API; if that fails, Raanana is used.
+* **Location:** the browser asks the reader for permission to use their location.
+  * **Found:** the ticker shows the reader's own town, e.g. "באר-שבע, ישראל". The browser sends
+    coordinates rounded to ~1 km (never the exact position); the town name comes from OpenStreetMap's
+    free **Nominatim** reverse-geocoding service (each ~1 km cell is looked up once and remembered;
+    requests are spaced 1 second apart as its rules require).
+  * **Not found** (permission refused or not supported): Tel Aviv is shown, marked
+    "תל אביב-יפו (מיקום ברירת מחדל)". This is also shown for the moment before the reader answers.
 * The **server** calls Open-Meteo at most once every 14 minutes **per ~10 km area** and shares that
   cached result with every reader in the area (data is never more than 15 minutes old), so thousands
   of readers cause only a few external requests. If the service fails, the last data is shown, or a
