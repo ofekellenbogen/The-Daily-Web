@@ -16,7 +16,10 @@ function setup(fetch, storage = new Map(), fresh = false, options = {}) {
   const editor = { dataset: { articleId: fresh ? '' : '123456789012345678901234', userId: 'writer',
     role: options.role || 'reporter', workflowStatus: options.workflowStatus || 'draft' },
     querySelector: () => ({}), querySelectorAll: () => Object.values(actions) };
-  let content = { title: 'First', summary: '', body: '', category: 'tech', imageUrl: '' };
+  let content = {
+    title: 'First', summary: '', body: '', category: 'tech', imageUrl: '', imageAlt: '',
+    imageCredit: '', imageSourceUrl: '', imageLicense: '', imageLicenseUrl: ''
+  };
   const elements = { 'article-editor': editor, 'article-form': form, 'staff-status': status, 'article-state': badge };
   vm.runInNewContext(script, {
     document: { getElementById: id => elements[id] }, fetch, crypto: require('node:crypto').webcrypto,

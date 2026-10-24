@@ -17,11 +17,11 @@ function setup(fetch, hasSnapshot = true) {
       replaceChildren(...items) { this.children = items; }, after() {} };
   }
   const editor = element(); editor.dataset = { articleId: 'article-id', workflowStatus: 'pending' };
-  const image = element(), caption = element(), preview = element(), input = element(), feedback = element();
-  input.value = '';
+  const image = element(), caption = element(), preview = element(), input = element(), altInput = element(), feedback = element();
+  input.value = ''; altInput.value = '';
   preview.querySelector = tag => tag === 'img' ? image : caption;
   editor.querySelector = () => element();
-  Object.assign(ids, { 'article-editor': editor, 'article-image': input, 'draft-image-preview': preview, 'snapshot-status': feedback });
+  Object.assign(ids, { 'article-editor': editor, 'article-image': input, 'article-image-alt': altInput, 'draft-image-preview': preview, 'snapshot-status': feedback });
   if (hasSnapshot) ids['approved-snapshot'] = element();
   let observer;
   vm.runInNewContext(script, {
@@ -30,13 +30,15 @@ function setup(fetch, hasSnapshot = true) {
     URL, fetch,
     MutationObserver: class { constructor(fn) { observer = fn; } observe() {} }
   });
-  return { ids, input, image, preview, caption, editor, observer, feedback };
+  return { ids, input, altInput, image, preview, caption, editor, observer, feedback };
 }
 test('preview reacts immediately to new, replaced, empty and invalid image URLs', () => {
   const page = setup(() => { throw new Error('No server request needed'); });
   assert.equal(page.preview.hidden, true);
   page.input.value = 'https://example.com/first.jpg'; page.input.listeners.input();
   assert.equal(page.image.src, page.input.value); assert.equal(page.preview.hidden, false);
+  page.altInput.value = 'City hall'; page.altInput.listeners.input();
+  assert.equal(page.image.alt, 'City hall');
   page.input.value = 'https://example.com/second.jpg'; page.input.listeners.input();
   assert.equal(page.image.src, page.input.value);
   page.image.listeners.error(); assert.equal(page.image.hidden, true);
@@ -45,12 +47,15 @@ test('preview reacts immediately to new, replaced, empty and invalid image URLs'
     page.input.value = value; page.input.listeners.input();
     assert.equal(page.preview.hidden, true); assert.equal(page.image.src, undefined);
   }
+  page.input.value = '/article-images/0123456789abcdef01234567.svg'; page.input.listeners.input();
+  assert.equal(page.preview.hidden, false);
+  assert.equal(page.image.src, page.input.value);
 });
 test('approval refreshes the snapshot from the server once, including first publication', async () => {
   for (const existing of [true, false]) {
     const urls = [];
     const page = setup(async url => {
-      urls.push(url); return { ok: true, json: async () => ({ data: { version: 2, categoryLabel: 'טכנולוגיה', title: '<script>not HTML</script>', summary: 'Latest', body: 'Approved content', imageUrl: 'https://example.com/published.jpg' } }) };
+      urls.push(url); return { ok: true, json: async () => ({ data: { version: 2, categoryLabel: 'טכנולוגיה', title: '<script>not HTML</script>', summary: 'Latest', body: 'Approved content', imageUrl: 'https://example.com/published.jpg', imageAlt: 'A technology illustration' } }) };
     }, existing);
     page.observer(); assert.equal(urls.length, 0);
     page.editor.dataset.workflowStatus = 'published'; page.observer(); await tick();
@@ -66,7 +71,7 @@ test('failed snapshot refresh provides a retry without repeating publication', a
   let fail = true;
   const page = setup(async () => {
     if (fail) throw new Error('offline');
-    return { ok: true, json: async () => ({ data: { version: 1, title: 'Published', categoryLabel: 'עולם', summary: '', body: '', imageUrl: '' } }) };
+    return { ok: true, json: async () => ({ data: { version: 1, title: 'Published', categoryLabel: 'עולם', summary: '', body: '', imageUrl: '', imageAlt: '' } }) };
   });
   page.editor.dataset.workflowStatus = 'published'; page.observer(); await tick();
   assert.match(page.feedback.textContent, /הפרסום הצליח/);

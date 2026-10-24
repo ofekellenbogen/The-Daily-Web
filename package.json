@@ -7,7 +7,6 @@
   "scripts": {
     "start": "node app.js",
     "dev": "node --watch app.js",
-    "seed:public": "node scripts/seed/public.js",
     "test": "node --test"
   },
   "engines": {

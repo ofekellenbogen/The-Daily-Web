@@ -15,7 +15,11 @@ const app = require('../../app');
 const mode = process.argv[2];
 const dbName = `daily_web_verify_${randomBytes(8).toString('hex')}`;
 let server, base;
-const content = { title: 'Verification article', summary: 'Summary', body: 'Original', category: 'tech', imageUrl: '' };
+const content = {
+  title: 'Verification article', summary: 'Summary', body: 'Original', category: 'tech',
+  imageUrl: 'https://example.com/verification.jpg', imageAlt: 'Verification illustration',
+  imageCredit: '', imageSourceUrl: '', imageLicense: '', imageLicenseUrl: ''
+};
 async function request(path, method = 'GET', body, cookie) {
   return fetch(`${base}${path}`, { method, redirect: 'manual', headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
 }
