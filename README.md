@@ -23,7 +23,6 @@ Open `.env` and set `MONGODB_URI` (ask a teammate for the team's Atlas connectio
 ```bash
 npm start                   # start the server
 npm run dev                 # or: start and restart automatically on code changes
-npm run seed                # add any missing demo data (safe to run any time, never deletes)
 npm test                    # run the automated tests (no database needed)
 ```
 
@@ -35,26 +34,9 @@ Open <http://localhost:3000>.
 | `MONGODB_DB`  | no       | `daily-web` | Database name                                   |
 | `PORT`        | no       | `3000`      | HTTP port                                       |
 | `NODE_ENV`    | no       |             | `production` makes cookies HTTPS-only           |
-| `SEED_PASSWORD` | no     |             | Only for `npm run seed` on an empty database: password of the demo accounts it creates |
-
-### Demo data (`npm run seed`)
-
-`scripts/seed-demo.js` makes sure the database has everything needed to demonstrate the system,
-and **only adds what is missing** (it never deletes or changes existing data):
-
-* at least 500 articles in all categories, plus comments on them
-* drafts (some still incomplete), articles waiting for approval, and returned articles with an editor's note
-* articles updated 2-3 times after publication, and published articles with an update in progress
-* views for the last 14 days in 5-minute buckets, with a jump after every published update
-  (for the Impact Analytics graph). Days that already have statistics are never overwritten,
-  so **run it again on the day of the defense** to fill in the views up to that day.
-
-The demo texts are fictional and say so in their first line.
-
 ### Accounts
 
-User accounts already exist in the shared database. On an empty database, `npm run seed` creates
-the accounts below with the password from `SEED_PASSWORD`. Log in at
+User accounts already exist in the shared database. Log in at
 `/login`. Editors can create users and reset passwords at **ניהול משתמשים** (`/editor/users`).
 
 | Role     | Example usernames                                         | Lands on    |
@@ -150,8 +132,7 @@ public/                         Static files sent to the browser as-is
   images/                         placeholder article image
 
 tests/                          Automated tests (Node's built-in test runner, MongoDB is mocked)
-scripts/seed-demo.js            Adds missing demo data (npm run seed)
-plan/                           Assignment PDF and the team's work split
+plan/                            Assignment PDF and the team's work split
 ```
 
 ---

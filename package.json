@@ -7,8 +7,7 @@
   "scripts": {
     "start": "node app.js",
     "dev": "node --watch app.js",
-    "test": "node --test",
-    "seed": "node scripts/seed-demo.js"
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20"
