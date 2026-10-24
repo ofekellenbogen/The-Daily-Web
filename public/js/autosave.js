@@ -30,7 +30,9 @@
     fieldset.disabled = busy || (editor.dataset.role === 'reporter' && value === 'pending');
     editor.querySelectorAll('[data-action]').forEach(button => {
       const action = button.dataset.action;
-      button.hidden = action === 'submit' ? value === 'pending' : ['approve', 'return'].includes(action) && value !== 'pending';
+      button.hidden = action === 'submit' ? value === 'pending'
+        : action === 'approve' ? value === 'published'
+        : action === 'return' && value !== 'pending';
     });
   }
   async function request(url, method, body) {

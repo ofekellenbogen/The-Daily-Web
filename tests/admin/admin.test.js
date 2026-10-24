@@ -56,7 +56,12 @@ test('data page and every CRUD method enforce editor access and same-origin prot
     }
     assert.equal((await request('/editor/data', 'GET', undefined, role)).status, role === 'guest' ? 302 : 403);
   }
-  assert.equal((await request('/editor/data')).status, 200);
+  const page = await request('/editor/data');
+  assert.equal(page.status, 200);
+  const html = await page.text();
+  assert.match(html, /<title>ניהול נתונים<\/title>/);
+  assert.match(html, /<h1>ניהול נתונים<\/h1>/);
+  assert.doesNotMatch(html, /ניהול משתמשים/);
   assert.equal((await request('/api/admin/users', 'POST', {}, 'editor', { Origin: 'https://evil.example' })).status, 403);
 });
 test('users support create/read/list/update/delete without exposing password hashes', async () => {

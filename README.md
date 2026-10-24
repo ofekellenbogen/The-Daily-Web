@@ -26,7 +26,7 @@ draft/session data. CRUD and the article workspace redesign (#11) are separate p
 
 For the team's MongoDB Atlas database, ask a teammate for `MONGODB_USERNAME`, `MONGODB_PASSWORD`, and the full `MONGODB_URI`, then fill in `.env`. The application connects using the full `MONGODB_URI`.
 
-Existing shared database accounts do not require running a seed command. Only create/reset demo accounts when needed: set `DEMO_PASSWORD` and run `npm run seed:users`. This resets those demo accounts' passwords.
+User accounts already exist in the shared database. Sign in with an existing account; editors can create and manage users through **ניהול נתונים** (`/editor/data`). There is no user seed command or automatic account creation at startup.
 
 ## Install and run
 
@@ -35,7 +35,7 @@ npm install
 cp .env.example .env
 ```
 
-Set `MONGODB_URI` in `.env` to a running local MongoDB or Atlas database, then start the server. If you need to create/reset demo accounts, first set `DEMO_PASSWORD` to 8–256 characters and run `npm run seed:users`.
+Set `MONGODB_URI` in `.env` to the MongoDB database containing your existing accounts, then start the server.
 
 ```bash
 npm start
@@ -43,22 +43,23 @@ npm start
 
 Open http://localhost:3000. `PORT` defaults to `3000`; `MONGODB_DB` defaults to `daily-web`. Use `npm run dev` to restart automatically after code changes.
 
-For the existing demo feed (520 articles, comments and view statistics), run `npm run seed:public`. It also seeds the users. Each seed command resets the demo accounts' passwords to the current `DEMO_PASSWORD`; `seed:public` also replaces their articles and related demo data. Keep `.env` out of Git.
+For the demo feed (520 articles, comments and view statistics), run `npm run seed:public`. It uses existing reporter accounts named `dana.levi`, `yossi.cohen`, `maya.mizrahi`, or `amir.peretz`, and an existing editor. At least one of those reporters and one editor must exist. It replaces those reporters' articles and related demo data without creating or changing users or passwords. Keep `.env` out of Git.
 
 ## Login and permissions
 
-Open `/login`. All demo accounts use the password you set in `DEMO_PASSWORD`:
+Open `/login` and use your existing account's password. Editors can manage accounts and reset passwords through `/editor/data`.
 
 | Role | Usernames | Access |
 | --- | --- | --- |
 | Guest | No login | Public feed, published articles and comments |
 | Reporter | `dana.levi`, `yossi.cohen`, `maya.mizrahi`, `amir.peretz` | `/reporter`: create articles, edit their own articles and submit them for review |
-| Editor | `editor` | `/editor`: view/edit all articles, approve publication, return with a note and delete |
+| Editor | Any existing account with the editor role | `/editor`: view/edit all articles, approve publication, return with a note and delete |
 
 Reporters cannot access another reporter's article or publish/delete content. While an article is pending review, its reporter cannot edit it. These rules are enforced on the server for both pages and API requests. Browser-supplied roles, author IDs and publication fields are rejected.
 
 The workspace provides an article list and an editing form. Draft changes save automatically; submission
 for review is explicit. Editing published content keeps the approved snapshot public until approval.
+Reporter and editor workspaces share the home page's search controls: title searches update after a short typing pause, and status changes apply immediately without reloading. Search and status filters remain active when loading more articles.
 
 Passwords are stored as salted, one-way `scrypt` hashes using Node's built-in `crypto` module. Login creates a random session token in an HttpOnly, SameSite=Lax cookie; only its SHA-256 hash and expiry are stored in MongoDB. Sessions last seven days and survive a server restart without a server-side secret or in-memory session store. Each request loads the user's current role from MongoDB. Logout deletes the session. Production uses Secure cookies, so set `NODE_ENV=production` when serving over HTTPS.
 
@@ -74,7 +75,7 @@ Passwords are stored as salted, one-way `scrypt` hashes using Node's built-in `c
 | POST | `/api/staff/articles` | Create an owned draft (reporter) |
 | PATCH | `/api/staff/articles/:id` | Save content (owner or editor) |
 | POST | `/api/staff/articles/:id/submit` | Submit an owned draft/returned article (reporter) |
-| POST | `/api/staff/articles/:id/approve` | Publish a pending article (editor) |
+| POST | `/api/staff/articles/:id/approve` | Publish a draft, pending or returned article (editor) |
 | POST | `/api/staff/articles/:id/return` | Return a pending article with `{ "note": "..." }` (editor) |
 | DELETE | `/api/staff/articles/:id` | Delete an article and related comments/statistics (editor) |
 
@@ -121,7 +122,7 @@ src/modules/analytics/      View tracking
 src/utils/                  Password hashing, cookies and ObjectId validation
 views/                      Semantic Hebrew/RTL EJS pages and shared layout
 public/css/, public/js/     Responsive styles and vanilla JavaScript/Ajax
-scripts/seed/               Demo users and public content
+scripts/seed/               Demo public content using existing accounts
 tests/                      Node's built-in test runner
 plan/                       Assignment PDF and team work plan
 ```
@@ -151,7 +152,7 @@ only for editing. New and existing drafts save automatically through Ajax under 
 
 `/editor` lists articles from every reporter and filters by all four workflow states. Filtering and loading the next 20 summaries use Ajax without reloading the page. The same filters work on the server and are validated there. Article list queries omit full bodies and use indexes for author, update time and workflow status.
 
-Editors can read and edit submitted content, approve complete pending articles, return them with a required correction note, and delete an article with its related comments and view data. Other state transitions and reporter attempts to use editor operations are rejected on the server. The editing page labels the submitted/working content and shows the current approved title, summary, body, category, image and version separately. The public article page continues to show the approved snapshot through editing, submission and return, and switches only after approval. Creation, submission, approval, returns and deletion produce operational logs.
+Editors can read and edit all articles and publish complete drafts, pending articles and returned articles directly, without reporter submission. Editing a published article creates a draft that the editor can publish as the next version. Editors can return pending articles with a required correction note and delete articles with their related comments and view data. Other state transitions and reporter attempts to use editor operations are rejected on the server. The editing page labels the submitted/working content and shows the current approved title, summary, body, category, image and version separately. The public article page continues to show the approved snapshot through editing, submission and return, and switches only after approval. Creation, submission, approval, returns and deletion produce operational logs.
 
 Tests cover status filters, pagination, transitions, approval, corrections and the published-update
 cycle. Autosave (#10) is included on this branch; CRUD management and weather remain separate tasks.

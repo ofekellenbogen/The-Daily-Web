@@ -2,7 +2,7 @@ require('dotenv').config();
 
 const mongoose = require('mongoose');
 const { connectDb } = require('../../src/config/db');
-const { seedUsers } = require('./users');
+const User = require('../../src/models/User');
 const Article = require('../../src/models/Article');
 const ViewStats = require('../../src/models/ViewStats');
 const Comment = require('../../src/models/Comment');
@@ -12,6 +12,7 @@ const { CATEGORIES } = Article;
 const ARTICLE_COUNT = 520;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_STATS_DAYS = 14;
+const DEMO_REPORTER_USERNAMES = ['dana.levi', 'yossi.cohen', 'maya.mizrahi', 'amir.peretz'];
 
 const SUBJECTS = {
   politics: ['הממשלה', 'הכנסת', 'ועדת הכספים', 'ראש העירייה', 'האופוזיציה'],
@@ -180,9 +181,11 @@ async function seed() {
   await connectDb(process.env.MONGODB_URI);
   const now = Date.now();
 
-  const users = await seedUsers();
-  const reporters = users.filter((user) => user.role === 'reporter');
-  const editor = users.find((user) => user.role === 'editor');
+  const reporters = await User.find({ username: { $in: DEMO_REPORTER_USERNAMES }, role: 'reporter' });
+  const editor = await User.findOne({ role: 'editor' });
+  if (!reporters.length || !editor) {
+    throw new Error('Public seeding requires an existing demo reporter and an editor. Manage accounts through the editor UI.');
+  }
 
   // Only data owned by the demo users is replaced, so other seeds are left intact.
   const oldArticleIds = await Article.find({ authorId: { $in: reporters.map((r) => r._id) } }).distinct('_id');
@@ -202,7 +205,7 @@ async function seed() {
 
   const publishedCount = articles.filter((a) => a.publishedVersion).length;
   console.log(
-    `[seed] ${users.length} users, ${articles.length} articles (${publishedCount} public), ` +
+    `[seed] ${articles.length} articles (${publishedCount} public), ` +
       `${stats.length} view-stat days, ${comments.length} comments`
   );
 }
