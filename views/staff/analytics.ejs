@@ -15,33 +15,40 @@
       <div><p class="analytics-eyebrow">מערכת החדשות</p><h1><%= title %></h1></div>
       <span class="analytics-timezone" lang="en" dir="ltr">UTC</span>
     </div>
+    <p class="analytics-intro">תמונת מצב של מערכת החדשות — צפיות, פרסומים והתקדמות הכתבות.</p>
+    <button id="analytics-overview" class="analytics-overview-button" type="button">כל הכתבות</button>
     <%# Filter form: article search with an autocomplete list (ARIA combobox/listbox pattern) + UTC date range.
-        The submit button stays disabled until analytics.js knows which article was picked. %>
+        An empty selection shows the combined report for all articles. %>
     <form id="analytics-filter" class="analytics-filter">
       <div class="analytics-article-field">
         <label for="analytics-article">חיפוש כתבה</label>
-        <input id="analytics-article" type="search" role="combobox" autocomplete="off" maxlength="100" required
-          placeholder="חיפוש לפי כותרת" aria-autocomplete="list" aria-expanded="false"
+        <input id="analytics-article" type="search" role="combobox" autocomplete="off" maxlength="100"
+          placeholder="כל הכתבות · חיפוש לפי כותרת" aria-autocomplete="list" aria-expanded="false"
           aria-controls="analytics-suggestions" aria-describedby="analytics-search-status">
         <ul id="analytics-suggestions" class="analytics-suggestions" role="listbox" aria-label="כתבות" hidden></ul>
         <span id="analytics-search-status" class="analytics-search-status" role="status" aria-live="polite"></span>
       </div>
       <div><label for="analytics-start">מתאריך</label><input id="analytics-start" type="date" aria-label="מתאריך (UTC)" required></div>
       <div><label for="analytics-end">עד תאריך</label><input id="analytics-end" type="date" aria-label="עד תאריך (UTC)" required></div>
-      <button id="analytics-submit" class="button" type="submit" disabled>הצגת נתונים</button>
+      <button id="analytics-submit" class="button" type="submit">הצגת נתונים</button>
     </form>
     <%# Loading / error messages for the report, announced by screen readers (aria-live). %>
     <p id="analytics-status" role="status" aria-live="polite"></p>
-    <%# Placeholder shown before an article is chosen. %>
-    <div class="analytics-empty">
-      <div class="analytics-empty-grid" aria-hidden="true"><span></span><span></span><span></span></div>
-      <h2>טרם נבחרה כתבה</h2>
-      <p>נתוני צפייה ופרסומים</p>
-    </div>
     <%# The report (totals, chart, publication dates). Hidden until analytics.js receives data. %>
+    <section id="analytics-states" aria-labelledby="analytics-states-title" hidden>
+      <h2 id="analytics-states-title">מצב הכתבות כעת</h2>
+      <dl class="analytics-state-grid">
+        <div class="analytics-state-all"><dt>סך הכתבות</dt><dd id="analytics-article-count">0</dd></div>
+        <div><dt>בהכנה</dt><dd id="analytics-state-draft">0</dd></div>
+        <div><dt>ממתינות לאישור</dt><dd id="analytics-state-pending">0</dd></div>
+        <div><dt>פורסמו</dt><dd id="analytics-state-published">0</dd></div>
+        <div><dt>הוחזרו לתיקונים</dt><dd id="analytics-state-returned">0</dd></div>
+      </dl>
+      <p class="analytics-caption">ספירת המצבים כוללת את כל הכתבות ומשקפת את מצבן הנוכחי, ללא תלות בטווח התאריכים.</p>
+    </section>
     <section id="analytics-result" aria-labelledby="analytics-title" hidden>
       <div class="analytics-heading">
-        <div class="analytics-selected-article"><p class="analytics-eyebrow">הכתבה הנבחרת</p><h2 id="analytics-title"></h2></div>
+        <div class="analytics-selected-article"><p id="analytics-scope" class="analytics-eyebrow">כל הכתבות</p><h2 id="analytics-title"></h2></div>
         <dl class="analytics-totals">
           <div><dt>צפיות בטווח</dt><dd id="analytics-total"></dd></div>
           <div><dt>פרסומים בטווח</dt><dd id="analytics-publication-count"></dd></div>
@@ -51,12 +58,12 @@
         <figure class="analytics-figure">
           <figcaption class="analytics-chart-heading">
             <div><h3>צפיות לאורך זמן</h3><p id="analytics-interval" class="analytics-caption"></p></div>
-            <div class="analytics-legend"><span class="analytics-view-key">צפיות</span><span class="analytics-event-key">פרסום גרסה</span></div>
+            <div class="analytics-legend"><span class="analytics-view-key">צפיות</span><span id="analytics-event-key" class="analytics-event-key">פרסום גרסה</span></div>
           </figcaption>
           <%# A canvas is just pixels, so role="img" + aria-label describe the chart to screen readers. %>
           <div class="analytics-chart"><canvas id="analytics-chart" role="img" aria-label="צפיות לאורך זמן ומועדי פרסום" aria-describedby="analytics-interval"></canvas></div>
         </figure>
-        <aside class="analytics-history" aria-labelledby="analytics-history-title">
+        <aside id="analytics-history" class="analytics-history" aria-labelledby="analytics-history-title">
           <h3 id="analytics-history-title">מועדי פרסום</h3>
           <ul id="analytics-publications" class="analytics-publications"></ul>
         </aside>

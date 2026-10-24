@@ -132,7 +132,7 @@ test('article search matches literal published titles and keeps queries bounded 
 });
 
 test('analytics pages and APIs reject guests, reporters and cross-origin requests', async () => {
-  for (const path of ['/editor/analytics', '/api/analytics/articles', `/api/analytics/articles/${id}`]) {
+  for (const path of ['/editor/analytics', '/api/analytics/articles', '/api/analytics/overview', `/api/analytics/articles/${id}`]) {
     const guest = await request(path);
     assert.equal(guest.status, path.startsWith('/api/') ? 401 : 302);
     assert.equal((await request(path, 'reporter')).status, 403);
@@ -197,4 +197,39 @@ test('a first-view unique-index race retries the atomic upsert once', async () =
   update.mock.mockImplementation(async () => { throw new Error('database unavailable'); });
   await assert.rejects(views.recordView(id), /database unavailable/);
   assert.equal(update.mock.callCount(), 3);
+});
+
+test('overview combines article buckets and includes every workflow state', async () => {
+  mock.method(Article, 'aggregate', async () => [
+    { _id: 'draft', count: 2, publications: 0 },
+    { _id: 'published', count: 3, publications: 4 }
+  ]);
+  mock.method(ViewStats, 'aggregate', async (pipeline) => {
+    assert.equal(pipeline[0].$match.dayUtc.$gte.toISOString(), '2026-10-20T00:00:00.000Z');
+    return [
+      { _id: { day: new Date('2026-10-20'), slot: '0' }, count: 12 },
+      { _id: { day: new Date('2026-10-20'), slot: '12' }, count: 5 }
+    ];
+  });
+  const result = await service.getOverview({ start: '2026-10-20', end: '2026-10-20' });
+  assert.deepEqual(result.counts, { draft: 2, pending: 0, published: 3, returned: 0 });
+  assert.equal(result.articleCount, 5);
+  assert.equal(result.publicationCount, 4);
+  assert.equal(result.total, 17);
+  assert.equal(result.points.length, 288);
+  const response = await request('/api/analytics/overview?start=2026-10-20&end=2026-10-20', 'editor');
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.equal((await response.json()).total, 17);
+});
+
+test('overview validates dates before querying and returns zero for empty data', async () => {
+  const articles = mock.method(Article, 'aggregate', async () => []);
+  mock.method(ViewStats, 'aggregate', async () => []);
+  await assert.rejects(service.getOverview({ start: 'bad' }), { status: 400 });
+  assert.equal(articles.mock.callCount(), 0);
+  const result = await service.getOverview({ start: '2026-10-20', end: '2026-10-21' });
+  assert.equal(result.articleCount, 0);
+  assert.equal(result.total, 0);
+  assert.equal(result.points.length, 48);
 });

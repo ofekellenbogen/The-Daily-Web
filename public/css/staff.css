@@ -218,3 +218,23 @@
 .save-feedback { display: flex; align-items: center; gap: 7px; min-height: 1.6em; margin: 12px 0 18px; color: #68736e; font-size: .82rem; font-weight: 400; line-height: 1.6; }
 .save-feedback--saved::before { content: '\2713'; color: #5b8071; font-size: .9rem; }
 .save-feedback.form-error { color: var(--color-primary-dark); font-size: .875rem; }
+
+/* Analytics overview and report cards. */
+.analytics-intro { margin: -10px 0 22px; color: var(--color-muted); line-height: 1.7; }
+.analytics-overview-button { margin-bottom: 16px; padding: 9px 18px; border: 1px solid #b4d9dc; border-radius: 24px; background: #e8f4f4; color: #07616b; font: inherit; font-weight: 600; cursor: pointer; }
+.analytics-overview-button:focus-visible { outline: 3px solid var(--analytics-accent); outline-offset: 3px; }
+.analytics-filter { border: 1px solid var(--color-border); border-radius: 14px; box-shadow: 0 4px 18px #252a2c05; }
+#analytics-states { margin-block: 28px; }
+#analytics-states h2 { font-size: 1rem; margin-bottom: 16px; }
+.analytics-state-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; margin: 0; }
+.analytics-state-grid > div { background: var(--color-surface); border: 1px solid var(--color-border); border-top: 3px solid #a4afb7; border-radius: 12px; padding: 20px; }
+.analytics-state-grid > div:nth-child(3) { border-top-color: #c28a25; }
+.analytics-state-grid > div:nth-child(4) { border-top-color: #278363; }
+.analytics-state-grid > div:nth-child(5) { border-top-color: #b35b64; }
+.analytics-state-grid > .analytics-state-all { border-color: #087f8c; background: #edf8f8; }
+.analytics-state-grid dt { font-size: .85rem; color: #51575a; }
+.analytics-state-grid dd { margin: 12px 0 0; font-size: 2rem; font-weight: 750; font-variant-numeric: tabular-nums; }
+.analytics-report-grid { background: var(--color-surface); padding: 24px; border: 1px solid var(--color-border); border-radius: 14px; }
+.analytics-report-grid:has(#analytics-history[hidden]) { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 900px) { .analytics-state-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .analytics-state-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .analytics-state-grid > .analytics-state-all { grid-column: 1 / -1; } .analytics-report-grid { padding: 16px; } }

@@ -16,4 +16,8 @@ async function article(req, res) {
   res.json(await analyticsService.getAnalytics(req.params.id, req.query));
 }
 
-module.exports = { dashboard, articles, article };
+async function overview(req, res) {
+  res.json(await analyticsService.getOverview(req.query));
+}
+
+module.exports = { dashboard, articles, article, overview };
