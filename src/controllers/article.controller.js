@@ -28,7 +28,7 @@ async function renderArticle(req, res) {
     commentService.countComments(article.id),
     // Every visit counts as a view. If recording fails we only log it - the reader still gets the article.
     viewTracking.recordVisit(article.id, req.deviceId).catch((err) => {
-      logger.error(`[views] failed to record a visit to ${article.id}`, err);
+      logger.error('[views] View recording failed; article remains available', err, { articleId: article.id });
     })
   ]);
 

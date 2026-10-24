@@ -21,21 +21,21 @@ async function get(req, res) {
 // POST /api/admin/:resource
 async function create(req, res) {
   const data = await adminService.create(req.params.resource, req.body);
-  logger.info(`[admin] created ${req.params.resource}/${data._id} by ${req.user._id}`);
+  logger.info('[admin] Resource created', { resource: req.params.resource, resourceId: data._id, actorId: req.user._id });
   res.status(201).json({ data });
 }
 
 // PATCH /api/admin/:resource/:id
 async function update(req, res) {
   const data = await adminService.update(req.params.resource, req.params.id, req.body, req.user);
-  logger.info(`[admin] updated ${req.params.resource}/${req.params.id} by ${req.user._id}`);
+  logger.info('[admin] Resource updated', { resource: req.params.resource, resourceId: req.params.id, actorId: req.user._id });
   res.json({ data });
 }
 
 // DELETE /api/admin/:resource/:id
 async function remove(req, res) {
   await adminService.remove(req.params.resource, req.params.id, req.user);
-  logger.info(`[admin] deleted ${req.params.resource}/${req.params.id} by ${req.user._id}`);
+  logger.info('[admin] Resource deleted', { resource: req.params.resource, resourceId: req.params.id, actorId: req.user._id });
   res.status(204).end();
 }
 

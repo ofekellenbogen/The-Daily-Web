@@ -1,31 +1,31 @@
-// A tiny logger: prints to the console AND appends to logs/app.log, so errors and
-// important events (logins, publications, deletions...) are kept after the server stops.
-// Each line looks like: 2026-10-24T14:00:00.000Z INFO [articles] approve 65f... by 65a...
+// Console and file logs share a timestamp, severity, event description and context.
+// Context must contain operational metadata only: never passwords, cookies or bodies.
 const fs = require('fs');
 const path = require('path');
 
 const LOG_DIR = path.join(__dirname, '..', '..', 'logs');
 const LOG_FILE = path.join(LOG_DIR, 'app.log');
-// `node --test` sets NODE_TEST_CONTEXT; tests shouldn't fill the real log file.
 const writeToFile = !process.env.NODE_TEST_CONTEXT;
-
 if (writeToFile) fs.mkdirSync(LOG_DIR, { recursive: true });
 
-function write(level, message, error) {
-  const details = error ? ` | ${error.stack || error.message || error}` : '';
-  const line = `${new Date().toISOString()} ${level} ${message}${details}\n`;
-  // appendFile is asynchronous, so logging never slows down a request.
-  if (writeToFile) fs.appendFile(LOG_FILE, line, () => {});
+// JSON escaping keeps user-controlled newlines from creating fake log entries.
+function singleLine(value) {
+  return JSON.stringify(String(value)).slice(1, -1);
 }
 
-function info(message) {
-  console.info(message);
-  write('INFO', message);
+function write(level, message, context = {}, err) {
+  const fields = Object.entries(context)
+    .filter(([, value]) => value !== undefined && value !== null)
+    .map(([key, value]) => `${singleLine(key)}=${JSON.stringify(String(value))}`);
+  if (err) fields.push(`error=${JSON.stringify(err.stack || err.message || String(err))}`);
+  const line = `${new Date().toISOString()} ${level} ${singleLine(message)}${fields.length ? ` | ${fields.join(' ')}` : ''}`;
+  const output = level === 'ERROR' ? 'error' : level === 'WARN' ? 'warn' : 'info';
+  console[output](line);
+  if (writeToFile) fs.appendFile(LOG_FILE, `${line}\n`, () => {});
 }
 
-function error(message, err) {
-  console.error(message, err || '');
-  write('ERROR', message, err);
-}
+function info(message, context) { write('INFO', message, context); }
+function warn(message, context) { write('WARN', message, context); }
+function error(message, err, context) { write('ERROR', message, context, err); }
 
-module.exports = { info, error };
+module.exports = { info, warn, error };
