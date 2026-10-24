@@ -55,8 +55,8 @@
           <button class="button" type="button" data-action="submit">שמירה ושליחה לאישור עורך</button>
         <% } %>
         <% if (currentUser.role === 'editor') { %>
+          <button class="button" type="button" data-action="approve" <%= article.workflowStatus === 'published' ? 'hidden' : '' %>>שמירה ואישור פרסום</button>
           <% if (article.workflowStatus === 'pending') { %>
-            <button class="button" type="button" data-action="approve">שמירה ואישור פרסום</button>
             <label for="editor-note">הערה להחזרה לתיקונים</label>
             <textarea id="editor-note" maxlength="1000" rows="3"></textarea>
             <button class="button button--secondary" type="button" data-action="return">שמירה והחזרה לתיקונים</button>

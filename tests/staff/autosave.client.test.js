@@ -4,14 +4,18 @@ const vm = require('node:vm');
 const { readFileSync } = require('node:fs');
 const script = readFileSync(require.resolve('../../public/js/autosave.js'), 'utf8');
 const tick = () => new Promise(resolve => setImmediate(resolve));
-function setup(fetch, storage = new Map(), fresh = false) {
+function setup(fetch, storage = new Map(), fresh = false, options = {}) {
   const handlers = {}, events = {};
   const fieldset = { disabled: false };
   const form = { elements: {}, querySelector: () => fieldset, after() {},
     addEventListener: (name, fn) => { handlers[name] = fn; } };
   const badge = {}, status = { classList: { toggle() {} } };
-  const editor = { dataset: { articleId: fresh ? '' : '123456789012345678901234', userId: 'writer', role: 'reporter', workflowStatus: 'draft' },
-    querySelector: () => ({}), querySelectorAll: () => [] };
+  const actions = Object.fromEntries((options.actions || []).map(action => [action, {
+    dataset: { action }, addEventListener(name, handler) { this[name] = handler; }
+  }]));
+  const editor = { dataset: { articleId: fresh ? '' : '123456789012345678901234', userId: 'writer',
+    role: options.role || 'reporter', workflowStatus: options.workflowStatus || 'draft' },
+    querySelector: () => ({}), querySelectorAll: () => Object.values(actions) };
   let content = {
     title: 'First', summary: '', body: '', category: 'tech', imageUrl: '', imageAlt: '',
     imageCredit: '', imageSourceUrl: '', imageLicense: '', imageLicenseUrl: ''
@@ -23,8 +27,57 @@ function setup(fetch, storage = new Map(), fresh = false) {
     localStorage: { getItem: key => storage.get(key) || null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k) },
     window: { addEventListener: (name, fn) => { events[name] = fn; }, setInterval() {}, history: { replaceState() {} } }
   });
-  return { handlers, events, storage, status, change(title) { content.title = title; handlers.input(); } };
+  return { handlers, events, storage, status, editor, actions, change(title) { content.title = title; handlers.input(); } };
 }
+
+test('editors can publish from draft and returned states, and after autosaving a published update', async () => {
+  for (const workflowStatus of ['draft', 'returned', 'published']) {
+    const requests = [];
+    let resolveSave;
+    const page = setup((url, options) => {
+      requests.push({ url, ...options });
+      if (options.method === 'PUT') return new Promise(resolve => { resolveSave = resolve; });
+      return Promise.resolve({ ok: true, json: async () => ({ message: 'Published' }) });
+    }, new Map(), false, { role: 'editor', workflowStatus, actions: ['approve', 'return', 'delete'] });
+    assert.equal(page.actions.approve.hidden, workflowStatus === 'published');
+    assert.equal(page.actions.return.hidden, true);
+    page.change('Editor changes');
+    resolveSave({ ok: true, json: async () => ({ workflowStatus: workflowStatus === 'returned' ? 'returned' : 'draft' }) });
+    await tick();
+    assert.equal(page.actions.approve.hidden, false);
+    assert.equal(page.actions.return.hidden, true);
+    // Clicking publish must save the current form before sending approval.
+    const publishing = page.actions.approve.click();
+    assert.equal(requests.length, 2);
+    assert.equal(requests[1].method, 'PUT');
+    assert.equal(JSON.parse(requests[1].body).title, 'Editor changes');
+    resolveSave({ ok: true, json: async () => ({ workflowStatus: workflowStatus === 'returned' ? 'returned' : 'draft' }) });
+    await publishing;
+    assert.equal(requests.length, 3);
+    assert.equal(requests[2].method, 'POST');
+    assert.match(requests[2].url, /\/approve$/);
+    assert.equal(page.editor.dataset.workflowStatus, 'published');
+    assert.equal(page.actions.approve.hidden, true);
+    assert.equal(page.actions.delete.hidden, false);
+  }
+});
+
+test('a failed editor save prevents publication and keeps publish available for retry', async () => {
+  const requests = [];
+  const page = setup(async (url, options) => {
+    requests.push({ url, ...options });
+    throw new Error('offline');
+  }, new Map(), false, { role: 'editor', actions: ['approve'] });
+  await page.actions.approve.click();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].method, 'PUT');
+  assert.equal(page.editor.dataset.workflowStatus, 'draft');
+  assert.equal(page.actions.approve.hidden, false);
+  assert.equal(page.actions.approve.disabled, false);
+  assert.match(page.status.textContent, /offline/);
+  assert.equal(page.storage.size, 1);
+});
+
 test('autosave serializes requests and saves the latest text typed during an in-flight save', async () => {
   const requests = [], resolves = [];
   const page = setup((url, options) => {
