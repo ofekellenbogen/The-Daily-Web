@@ -1,3 +1,12 @@
+/* =====================================================================
+   base.css - shared by EVERY page (loaded from partials/layout/head.ejs).
+   Contains: CSS variables (colors, radius, font), reset, page layout,
+   site header + footer, buttons and small helpers.
+   Responsive: the header uses CSS Grid and changes its layout in the
+   media queries below (desktop > 1000px, tablet <= 1000px, mobile <= 600px).
+   ===================================================================== */
+
+/* ===== Variables (design tokens) - reused by public.css and staff.css ===== */
 :root {
   --color-bg: #f5f5f2;
   --color-surface: #ffffff;
@@ -11,12 +20,14 @@
   --font: "Segoe UI", Arial, "Noto Sans Hebrew", sans-serif;
 }
 
+/* ===== Reset & page layout ===== */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
+/* Flexbox column: header, main (grows with flex: 1), footer - keeps the footer at the bottom. */
 body {
   margin: 0;
   min-height: 100vh;
@@ -41,6 +52,7 @@ a {
   color: inherit;
 }
 
+/* Centered content column used by header, main and footer. */
 .container {
   width: 100%;
   max-width: 1200px;
@@ -48,15 +60,7 @@ a {
   padding: 0 16px;
 }
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
+/* ===== Site header (partials/layout/header.ejs) ===== */
 .site-header {
   background: var(--color-surface);
   color: var(--color-text);
@@ -64,6 +68,7 @@ a {
   border-bottom: 1px solid var(--color-border);
 }
 
+/* Desktop: 3 Grid columns -> main nav | masthead (logo) | account nav. */
 .site-header__inner {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -73,6 +78,7 @@ a {
   padding-bottom: 24px;
 }
 
+/* ===== Masthead: logo + tagline ===== */
 .site-masthead { text-align: center; }
 
 .brand {
@@ -93,6 +99,7 @@ a {
   color: var(--color-muted);
 }
 
+/* ===== Navigation (main nav + account nav) - Flexbox rows that wrap ===== */
 .site-nav,
 .staff-nav {
   display: flex;
@@ -115,6 +122,8 @@ a {
 .staff-nav .button { padding: 7px 12px; font-size: 0.8rem; border-radius: 4px; }
 .account-login { border-inline-start: 1px solid var(--color-border); padding-inline-start: 18px; }
 
+/* ===== Responsive header =====
+   Tablet (<= 1000px): logo on its own row, the two navs share the row below. */
 @media (max-width: 1000px) {
   .site-header__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; padding-block: 20px; }
   .site-masthead { grid-column: 1 / -1; grid-row: 1; }
@@ -122,6 +131,7 @@ a {
   .staff-nav { grid-column: 2; grid-row: 2; }
 }
 
+/* Mobile (<= 600px): one column - logo, main nav, account nav stacked and centered. */
 @media (max-width: 600px) {
   .site-header__inner { grid-template-columns: minmax(0, 1fr); gap: 16px; padding-block: 18px 14px; }
   .site-nav { grid-column: 1; grid-row: 2; justify-content: center; gap: 10px 20px; }
@@ -131,6 +141,7 @@ a {
   .brand { font-size: 1.85rem; }
 }
 
+/* ===== Site footer (partials/layout/footer.ejs) ===== */
 .site-footer {
   margin-top: 32px;
   padding: 16px 0;
@@ -143,6 +154,7 @@ a {
   margin: 0;
 }
 
+/* ===== Buttons (.button = primary red, .button--secondary = outline) ===== */
 .button {
   display: inline-block;
   padding: 8px 18px;
@@ -177,10 +189,13 @@ a {
   color: #fff;
 }
 
+/* ===== Helpers & error page ===== */
+/* Makes the hidden attribute win over any display rule (JS toggles elements with it). */
 [hidden] {
   display: none !important;
 }
 
+/* Error page (views/error.ejs). */
 .error-page {
   padding-top: 48px;
   text-align: center;

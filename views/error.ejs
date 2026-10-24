@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<%# Error page (404 / 500 / 4xx). Rendered by src/middleware/errorHandler.js (notFound + errorHandler).
+    Receives: title, status (HTTP code), message (safe text chosen by the server). No client script. %>
 <html lang="he" dir="rtl">
 <head>
   <%- include('partials/layout/head', { title }) %>

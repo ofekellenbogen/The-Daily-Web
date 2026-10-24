@@ -1,0 +1,186 @@
+// Moving weather ticker at the top of the home page (views/partials/weather.ejs).
+//
+// Responsibilities:
+//   1. Loads the weather from GET /api/weather when the page opens and turns it into a row of
+//      short items (now, feels-like, high/low, rain, wind, humidity, hourly and daily forecast).
+//   2. The items are added twice to the track; CSS moves the track so the loop never shows a gap
+//      (see .weather-ticker__track in public.css).
+//   3. The "refresh" button asks the server for fresh data (GET /api/weather?refresh=true),
+//      limited to one click every 3 seconds.
+//   4. On failure an error message with a "retry" button replaces the moving items.
+(function () {
+  'use strict';
+
+  // ===== Page elements =============================================================
+  const byId = (id) => document.getElementById(id);
+  const loadingEl = byId('weather-loading');
+  const detailsEl = byId('weather-details');
+  const errorEl = byId('weather-error');
+  const errorMsgEl = byId('weather-error-msg');
+  const trackEl = byId('weather-track');
+  const refreshBtn = byId('weather-refresh');
+  const retryBtn = byId('weather-retry');
+
+  // If the ticker is not on the page, do nothing
+  if (!loadingEl || !detailsEl || !errorEl || !trackEl) return;
+
+  const REFRESH_THROTTLE_MS = 3000;
+
+  let isFetching = false; // prevents two requests at the same time
+  let lastRefreshClick = 0; // time (ms) of the last accepted refresh click
+
+  // ===== Formatting helpers ========================================================
+  // "2026-10-24T12:00:00Z" -> "15:00" (local time). Invalid input gives ''.
+  function formatTime(isoString) {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // "2026-10-25" -> short Hebrew weekday name.
+  function formatDay(dateString) {
+    if (!dateString) return '';
+    // Noon avoids the date moving to the previous/next day because of the time zone.
+    const date = new Date(`${dateString}T12:00:00`);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('he-IL', { weekday: 'short' });
+  }
+
+  function degrees(value) {
+    return typeof value === 'number' ? `${value}°` : '--';
+  }
+
+  function percent(value) {
+    return typeof value === 'number' ? `${value}%` : '--';
+  }
+
+  // ===== Building the ticker items =================================================
+  // One ticker item: <li> with optional bold part, normal text and optional badge.
+  function item({ strong, text, badge }) {
+    const li = document.createElement('li');
+    li.className = 'weather-ticker__item';
+    if (strong) {
+      const bold = document.createElement('strong');
+      bold.textContent = strong;
+      li.append(bold);
+    }
+    if (text) {
+      const span = document.createElement('span');
+      span.textContent = text;
+      li.append(span);
+    }
+    if (badge) {
+      const mark = document.createElement('span');
+      mark.className = 'weather-ticker__badge';
+      mark.textContent = badge;
+      li.append(mark);
+    }
+    return li;
+  }
+
+  // The list of things to show, in reading order.
+  function buildItems(weather) {
+    const items = [
+      { strong: `${weather.icon || '⛅'} ${degrees(weather.temperature)}`, text: weather.description || '' },
+      { text: `מורגש כ-${degrees(weather.feelsLike ?? weather.temperature)}` },
+      { text: `↑ ${degrees(weather.tempMax)}  ↓ ${degrees(weather.tempMin)}` },
+      { text: `משקעים ${percent(weather.precipitation)}` },
+      { text: `רוח ${weather.windSpeed ?? 0} קמ"ש` },
+      { text: `לחות ${percent(weather.humidity)}` }
+    ];
+    // Upcoming hours, e.g. "18:00 🌙 22°"
+    for (const hour of weather.hourly || []) {
+      items.push({ strong: hour.time, text: `${hour.icon || ''} ${degrees(hour.temperature)}` });
+    }
+    // Next days, e.g. "יום ה׳ ⛅ 27° / 19°"
+    for (const day of weather.daily || []) {
+      items.push({ strong: formatDay(day.date), text: `${day.icon || ''} ${degrees(day.maxTemp)} / ${degrees(day.minTemp)}` });
+    }
+    // "stale" = the server couldn't reach the weather service and sent its last saved data.
+    items.push({ text: `עודכן ${formatTime(weather.updatedAt)}`, badge: weather.stale ? 'נתונים שמורים' : '' });
+    return items;
+  }
+
+  // One copy of the items as a <ul>. The second copy is hidden from screen readers
+  // (it exists only for the visual loop), so they read the weather once.
+  function group(items, isCopy) {
+    const list = document.createElement('ul');
+    list.className = 'weather-ticker__group';
+    if (isCopy) list.setAttribute('aria-hidden', 'true');
+    list.append(...items.map(item));
+    return list;
+  }
+
+  // ===== Ticker states: loading / details / error ==================================
+  function showLoading() {
+    loadingEl.hidden = false;
+    detailsEl.hidden = true;
+    errorEl.hidden = true;
+    if (refreshBtn) refreshBtn.disabled = true;
+  }
+
+  function showDetails(weather) {
+    const cityEl = byId('weather-city');
+    if (cityEl) cityEl.textContent = weather.city || 'רעננה, ישראל';
+
+    const items = buildItems(weather);
+    trackEl.replaceChildren(group(items, false), group(items, true));
+
+    loadingEl.hidden = true;
+    detailsEl.hidden = false;
+    errorEl.hidden = true;
+    if (refreshBtn) refreshBtn.disabled = false;
+  }
+
+  function showError(message) {
+    if (errorMsgEl) errorMsgEl.textContent = message || 'מידע מזג האוויר אינו זמין כעת';
+    loadingEl.hidden = true;
+    detailsEl.hidden = true;
+    errorEl.hidden = false;
+    if (refreshBtn) refreshBtn.disabled = false;
+  }
+
+  // ===== Loading the weather =======================================================
+  async function loadWeather(forceRefresh = false) {
+    if (isFetching) return;
+    isFetching = true;
+    showLoading();
+
+    try {
+      const url = forceRefresh ? '/api/weather?refresh=true' : '/api/weather';
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json' }
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = await response.json();
+      if (!data.success || !data.weather) {
+        throw new Error(data.message || 'נתוני מזג אוויר חסרים');
+      }
+
+      showDetails(data.weather);
+    } catch (err) {
+      // The technical error goes to the console; the user sees a friendly Hebrew message.
+      console.warn('[weather] client error fetching weather:', err.message);
+      showError('שירות מזג האוויר אינו זמין כעת. נסו שוב מאוחר יותר.');
+    } finally {
+      isFetching = false;
+    }
+  }
+
+  // ===== Buttons ===================================================================
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      const now = Date.now();
+      // Throttle refresh clicks (3 seconds)
+      if (now - lastRefreshClick < REFRESH_THROTTLE_MS) return;
+      lastRefreshClick = now;
+      loadWeather(true);
+    });
+  }
+
+  if (retryBtn) retryBtn.addEventListener('click', () => loadWeather(false));
+
+  loadWeather(false);
+})();

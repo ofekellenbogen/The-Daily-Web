@@ -1,3 +1,7 @@
+<%# Comments section partial, included by public/article.ejs.
+    Receives: articleId, comments ({ data, meta: { nextCursor, hasMore } }), commentCount, formatDate.
+    The first page is rendered on the server; /js/comments.js posts new comments, loads older
+    pages (data-next-cursor) and lets editors delete (data-can-moderate). %>
 <section class="comments" id="comments" aria-labelledby="comments-title"
   data-article-id="<%= articleId %>" data-can-moderate="<%= locals.currentUser?.role === 'editor' %>" data-next-cursor="<%= comments.meta.nextCursor || '' %>">
   <h2 id="comments-title">תגובות (<span id="comments-count"><%= commentCount %></span>)</h2>
@@ -13,13 +17,16 @@
     </div>
     <div class="comment-form__actions">
       <button type="submit" class="button">פרסום תגובה</button>
+      <%# Result of posting ("published", validation/rate-limit errors), read by screen readers via aria-live. %>
       <p class="comment-form__status" id="comment-status" role="status" aria-live="polite"></p>
     </div>
+    <%# Posting needs JavaScript; this message is shown only when JS is disabled. %>
     <noscript>
       <p class="comment-form__status">כדי לפרסם תגובה יש להפעיל JavaScript בדפדפן.</p>
     </noscript>
   </form>
 
+  <%# Server-rendered first page of comments (readable without JS). All user text uses escaped output. %>
   <ol class="comment-list" id="comment-list">
     <% for (const comment of comments.data) { %>
       <li class="comment">
@@ -28,6 +35,7 @@
           <time datetime="<%= comment.createdAt %>"><%= formatDate(comment.createdAt) %></time>
         </header>
         <p class="comment__body"><%= comment.body %></p>
+        <%# Only editors get a delete button; the server re-checks the role on DELETE. %>
         <% if (locals.currentUser?.role === 'editor') { %>
           <button type="button" class="button button--secondary" data-delete-comment="<%= comment.id %>">מחיקת תגובה</button>
         <% } %>
@@ -35,6 +43,7 @@
     <% } %>
   </ol>
 
+  <%# "No comments" message and "load older" button; comments.js toggles them via the hidden attribute. %>
   <p class="comments-empty" id="comments-empty" <%= comments.data.length > 0 ? 'hidden' : '' %>>
     אין עדיין תגובות. היו הראשונים להגיב!
   </p>

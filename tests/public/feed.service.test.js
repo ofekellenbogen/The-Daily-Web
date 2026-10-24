@@ -8,8 +8,8 @@ const {
   escapeRegex,
   encodeDateCursor,
   decodeDateCursor
-} = require('../../src/modules/public/feed.service');
-const { FALLBACK_IMAGE_URL } = require('../../src/modules/public/article-media');
+} = require('../../src/services/feed.service');
+const { FALLBACK_IMAGE_URL } = require('../../src/services/articleImage.service');
 
 test('public feed cards include accessible media and a fallback for legacy articles', async (t) => {
   const docs = [{

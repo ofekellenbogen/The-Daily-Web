@@ -1,7 +1,12 @@
+<%# Site header partial, included at the top of every page.
+    Uses res.locals set in middleware: currentUser (auth.js; undefined for guests) and currentPath (app.js).
+    `locals.x` is used so a missing variable is just undefined instead of an error.
+    aria-current="page" marks the link of the current page. %>
 <header class="site-header">
   <div class="container site-header__inner">
     <nav class="site-nav" aria-label="ניווט ראשי">
       <a aria-current="<%= locals.currentPath === '/' || locals.currentPath?.startsWith('/articles/') ? 'page' : 'false' %>" href="/">חדשות</a>
+      <%# Logged-in staff only: link to their workspace; editors also get analytics and users management. %>
       <% if (locals.currentUser) { %>
         <a aria-current="<%= ['/editor', '/reporter'].includes(locals.currentPath) || locals.currentPath?.startsWith('/staff/articles/') ? 'page' : 'false' %>" href="<%= currentUser.role === 'editor' ? '/editor' : '/reporter' %>"><%= currentUser.role === 'editor' ? 'ניהול תוכן' : 'אזור העבודה שלי' %></a>
         <% if (currentUser.role === 'editor') { %><a aria-current="<%= locals.currentPath === '/editor/analytics' ? 'page' : 'false' %>" href="/editor/analytics">סטטיסטיקות</a><% } %>
@@ -12,6 +17,7 @@
       <a class="brand" href="/" lang="en" dir="ltr">The Daily <span>Web</span></a>
       <p class="tagline">החדשות שחשובות, בזמן אמת</p>
     </div>
+    <%# Account area: greeting + logout (POST form) for staff, login link for guests. %>
     <nav class="staff-nav" aria-label="חשבון משתמש">
       <% if (locals.currentUser) { %>
         <span class="account-identity"><span>שלום,</span> <strong><%= currentUser.displayName %></strong></span>

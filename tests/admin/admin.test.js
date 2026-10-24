@@ -6,8 +6,8 @@ const Comment = require('../../src/models/Comment');
 const ViewStats = require('../../src/models/ViewStats');
 const Article = require('../../src/models/Article');
 const Session = require('../../src/models/Session');
-const auth = require('../../src/modules/auth/auth.service');
-const service = require('../../src/modules/admin/admin.service');
+const auth = require('../../src/services/auth.service');
+const service = require('../../src/services/admin.service');
 const { verifyPassword } = require('../../src/utils/password');
 const app = require('../../app');
 const actor = new User({ role: 'editor' });
@@ -54,12 +54,8 @@ test('users page and every CRUD method enforce editor access and same-origin pro
     for (const method of ['GET', 'POST', 'PATCH', 'DELETE']) {
       assert.equal((await request(`/api/admin/users${['PATCH', 'DELETE'].includes(method) ? `/${actor._id}` : ''}`, method, undefined, role)).status, role === 'guest' ? 401 : 403);
     }
-    assert.equal((await request('/editor/data', 'GET', undefined, role)).status, role === 'guest' ? 302 : 403);
     assert.equal((await request('/editor/users', 'GET', undefined, role)).status, role === 'guest' ? 302 : 403);
   }
-  const legacy = await request('/editor/data');
-  assert.equal(legacy.status, 302);
-  assert.equal(legacy.headers.get('location'), '/editor/users');
   const page = await request('/editor/users');
   assert.equal(page.status, 200);
   const html = await page.text();
