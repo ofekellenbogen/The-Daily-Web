@@ -3,9 +3,9 @@ const assert = require('node:assert/strict');
 const { once } = require('node:events');
 const Article = require('../../src/models/Article');
 const ViewStats = require('../../src/models/ViewStats');
-const service = require('../../src/modules/analytics/analytics.service');
-const views = require('../../src/modules/analytics/views.service');
-const auth = require('../../src/modules/auth/auth.service');
+const service = require('../../src/services/analytics.service');
+const views = require('../../src/services/viewTracking.service');
+const auth = require('../../src/services/auth.service');
 const app = require('../../app');
 
 const id = '507f1f77bcf86cd799439011';

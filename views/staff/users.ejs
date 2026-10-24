@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <%- include('../partials/layout/head', { title }) %>
+  <link rel="stylesheet" href="/css/public.css">
+  <link rel="stylesheet" href="/css/staff.css">
+</head>
+<body>
+  <%- include('../partials/layout/header') %>
+  <main class="container staff-page">
+    <h1>ניהול משתמשים</h1>
+    <p>יצירה, חיפוש ועריכה של חשבונות צוות המערכת.</p>
+    <form id="data-search" class="feed-controls users-controls" role="search">
+      <div class="field field--search">
+        <label for="data-query">חיפוש משתמשים</label>
+        <input type="search" id="data-query" name="q" maxlength="100" placeholder="חיפוש לפי שם משתמש או שם לתצוגה..." autocomplete="off">
+      </div>
+      <button type="submit" class="button">חיפוש</button>
+      <button type="button" id="data-new" class="button button--secondary">משתמש חדש</button>
+    </form>
+    <p id="data-status" role="status" aria-live="polite"></p>
+    <form id="data-form" class="staff-form staff-card" hidden>
+      <h2 id="data-form-title">משתמש חדש</h2>
+      <div id="data-fields" class="staff-form"></div>
+      <div class="staff-actions"><button class="button">שמירה</button><button type="button" id="data-cancel" class="button button--secondary">ביטול</button></div>
+    </form>
+    <ul id="data-list" class="article-list" aria-label="משתמשים לניהול"></ul>
+    <button id="data-more" class="button" hidden>טעינת משתמשים נוספים</button>
+    <noscript>יש להפעיל JavaScript לניהול המשתמשים.</noscript>
+  </main>
+  <%- include('../partials/layout/footer') %>
+  <script src="/js/users.js" defer></script>
+</body>
+</html>

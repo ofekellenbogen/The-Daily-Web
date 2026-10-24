@@ -2,7 +2,7 @@ const { test, before, after, beforeEach, afterEach, mock } = require('node:test'
 const assert = require('node:assert/strict');
 const { once } = require('node:events');
 const app = require('../../app');
-const weatherService = require('../../src/modules/weather/weather.service');
+const weatherService = require('../../src/services/weather.service');
 
 let server;
 let baseUrl;

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const weatherService = require('../../src/modules/weather/weather.service');
+const weatherService = require('../../src/services/weather.service');
 
 test.beforeEach(() => weatherService.clearCache());
 
